@@ -135,7 +135,7 @@ function add_contact(): void
         echo "
 Adding a contact!
 <form action='contactlist.php?action=add' method='post'>
-	Contact's ID: <input type='text' name='ID' value='{$_GET['ID']}' />
+	Contact's ID: <input type='text' name='ID' value='" . (isset($_GET['ID']) ? abs((int)$_GET['ID']) : '') . "' />
 	<br />
 	<input type='submit' value='Add Contact' />
 </form>
