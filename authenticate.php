@@ -32,6 +32,13 @@ if (empty($username) || empty($password))
 	You did not fill in the login form!<br />
 	<a href='login.php'>&gt; Back</a>");
 }
+if (mcc_login_blocked($db, (string)$_SERVER['REMOTE_ADDR']))
+{
+    die(
+            "<h3>{$set['game_name']} Error</h3>
+	Too many failed logins from your connection. Please wait 15 minutes and try again.<br />
+	<a href='login.php'>&gt; Back</a>");
+}
 $form_username = $db->escape(stripslashes($username));
 $raw_password = stripslashes($password);
 $uq =
@@ -42,6 +49,7 @@ $uq =
 if ($db->num_rows($uq) == 0)
 {
     $db->free_result($uq);
+    mcc_login_failed($db, (string)$_SERVER['REMOTE_ADDR']);
     die(
             "<h3>{$set['game_name']} Error</h3>
 	Invalid username or password!<br />
@@ -51,37 +59,28 @@ else
 {
     $mem = $db->fetch_row($uq);
     $db->free_result($uq);
-    $login_failed = false;
-    // Pass Salt generation: autofix
-    if (empty($mem['pass_salt']))
+    $login_failed = !verify_user_password($raw_password,
+            (string)$mem['pass_salt'], (string)$mem['userpass']);
+    // Upgrade legacy MD5 (and outdated) hashes to password_hash() the moment
+    // the player proves they know the password. No reset needed.
+    if (!$login_failed && password_needs_upgrade((string)$mem['userpass']))
     {
-        if (md5($raw_password) != $mem['userpass'])
-        {
-            $login_failed = true;
-        }
-        $salt = generate_pass_salt();
-        $enc_psw = encode_password($mem['userpass'], $salt, true);
-        $e_salt = $db->escape($salt); // in case of changed salt function
-        $e_encpsw = $db->escape($enc_psw); // ditto for password encoder
+        $e_encpsw = $db->escape(encode_password($raw_password));
         $db->query(
                 "UPDATE `users`
-        		 SET `pass_salt` = '{$e_salt}', `userpass` = '{$e_encpsw}'
-        		 WHERE `userid` = {$mem['userid']}");
-    }
-    else
-    {
-        $login_failed =
-                !(verify_user_password($raw_password, $mem['pass_salt'],
-                        $mem['userpass']));
+                 SET `userpass` = '{$e_encpsw}'
+                 WHERE `userid` = {$mem['userid']}");
     }
     if ($login_failed)
     {
+        mcc_login_failed($db, (string)$_SERVER['REMOTE_ADDR']);
         die(
                 "<h3>{$set['game_name']} Error</h3>
 		Invalid username or password!<br />
 		<a href='login.php'>&gt; Back</a>");
     }
-    session_regenerate_id();
+    mcc_login_succeeded($db, (string)$_SERVER['REMOTE_ADDR']);
+    session_regenerate_id(true);
     $_SESSION['loggedin'] = 1;
     $_SESSION['userid'] = $mem['userid'];
     $IP = $db->escape($_SERVER['REMOTE_ADDR']);

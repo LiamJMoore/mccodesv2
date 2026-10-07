@@ -11,8 +11,8 @@ if (str_contains($_SERVER['PHP_SELF'], 'globals.php'))
 {
     exit;
 }
-session_name('MCCSID');
-session_start();
+require_once __DIR__ . '/lib/session.php';
+mcc_session_start();
 if (!isset($_SESSION['started']))
 {
     session_regenerate_id();
