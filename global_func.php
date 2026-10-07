@@ -973,7 +973,8 @@ function stafflog_add(string $text): void
 function request_csrf_code(string $formid): string
 {
     // Generate the token
-    $token = md5((string)mt_rand());
+    // Cryptographically random, so a token cannot be predicted.
+    $token = bin2hex(random_bytes(16));
     // Insert/Update it
     $issue_time = time();
     $_SESSION["csrf_{$formid}"] =
@@ -1018,7 +1019,8 @@ function verify_csrf_code(string $formid, string $code): bool
         if ($token['issued'] + $expiry > time())
         {
             // It's ok, check the contents
-            $verified = ($token['token'] === $code);
+            // Constant-time compare, so timing gives nothing away.
+            $verified = hash_equals((string)$token['token'], $code);
         } // don't need an else case - verified = false
         // Remove the token before finishing
         unset($_SESSION["csrf_{$formid}"]);
@@ -1045,7 +1047,47 @@ function verify_csrf_code(string $formid, string $code): bool
  */
 function verify_user_password(string $input, string $salt, string $pass): bool
 {
-    return ($pass === encode_password($input, $salt));
+    // Modern hashes (bcrypt/argon2) carry their own salt and cost.
+    if (is_modern_password_hash($pass))
+    {
+        return password_verify($input, $pass);
+    }
+    // Legacy v2: md5(salt . md5(password)), or a bare md5 from before salts.
+    $legacy = ($salt === '') ? md5($input) : encode_legacy_password($input, $salt);
+    return hash_equals($pass, $legacy);
+}
+
+/**
+ * Whether a stored password is a modern password_hash() hash rather than a
+ * legacy MD5 one.
+ */
+function is_modern_password_hash(string $pass): bool
+{
+    return (password_get_info($pass)['algo'] ?? null) !== null
+        && password_get_info($pass)['algo'] !== 0;
+}
+
+/**
+ * True when a stored password should be re-hashed: it is a legacy MD5 hash,
+ * or a modern hash made with weaker settings than PHP's current default.
+ */
+function password_needs_upgrade(string $pass): bool
+{
+    return !is_modern_password_hash($pass)
+        || password_needs_rehash($pass, PASSWORD_DEFAULT);
+}
+
+/**
+ * The legacy v2 encoding, kept only so existing players can still log in
+ * (and be upgraded) after the move to password_hash().
+ */
+function encode_legacy_password(string $password, string $salt, bool $already_md5 = false): string
+{
+    if (!$already_md5)
+    {
+        $password = md5($password);
+    }
+    return md5($salt . $password);
 }
 
 /**
@@ -1060,13 +1102,15 @@ function verify_user_password(string $input, string $salt, string $pass): bool
  *
  * @return string	The resulting encoded password.
  */
-function encode_password(string $password, string $salt, bool $already_md5 = false): string
+function encode_password(string $password, string $salt = '', bool $already_md5 = false): string
 {
-    if (!$already_md5)
+    // Legacy callers that pass an md5 still get the legacy form.
+    if ($already_md5)
     {
-        $password = md5($password);
+        return encode_legacy_password($password, $salt, true);
     }
-    return md5($salt . $password);
+    // bcrypt (or whatever PHP's current default is): salted, slow by design.
+    return password_hash($password, PASSWORD_DEFAULT);
 }
 
 /**
@@ -1077,7 +1121,8 @@ function encode_password(string $password, string $salt, bool $already_md5 = fal
  */
 function generate_pass_salt(): string
 {
-    return substr(md5((string)microtime(true)), 0, 8);
+    // Only used by legacy hashes now; random rather than time-derived.
+    return bin2hex(random_bytes(4));
 }
 
 /**

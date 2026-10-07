@@ -72,6 +72,15 @@ class database
                 'Attempted to connect to database on ' . $this->host,
                 debug_backtrace());
         }
+        // The engine was written for MySQL's old, non-strict mode: it inserts
+        // rows without filling every TEXT column (registration, mail, forum
+        // posts...). Strict mode, the default on MySQL 5.7+/MariaDB 10.2+,
+        // rejects those inserts and the page dies. Drop just the two strict
+        // flags for this connection and keep everything else as configured.
+        if ($conn) {
+            mysqli_query($conn,
+                "SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(REPLACE(REPLACE(@@SESSION.sql_mode, 'STRICT_TRANS_TABLES', ''), 'STRICT_ALL_TABLES', ''), ',,', ','))");
+        }
         // @overridecharset mysqli
         $this->connection_id = $conn;
         return $this->connection_id;

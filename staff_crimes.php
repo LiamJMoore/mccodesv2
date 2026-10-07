@@ -406,7 +406,7 @@ function edit_crime_sub(): void
 function delcrime(): void
 {
     global $h, $db;
-    switch ($_GET['step']) {
+    switch ($_GET['step'] ?? '') {
         default:
             $csrf = request_csrf_html('staff_delcrime1');
             echo "
@@ -837,7 +837,7 @@ function delete_crimegroup_do(): void
  */
 function delcrimegroup(): void
 {
-    switch ($_GET['step']) {
+    switch ($_GET['step'] ?? '') {
         default:
             delete_crimegroup_select();
             break;

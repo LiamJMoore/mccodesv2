@@ -12,21 +12,18 @@ require_once('globals_nonauth.php');
 $login_csrf = request_csrf_code('login');
 print
         <<<EOF
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <title>{$set['game_name']}</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta charset="iso-8859-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script type="text/javascript" src="js/login.js"></script>
-<link href="css/login.css" type="text/css" rel="stylesheet" />
+<link href="css/game.css" type="text/css" rel="stylesheet" />
 </head>
-<body onload="getme();">
-<center>
-<table width="970" border="0" cellpadding="0" cellspacing="0" class="table2">
-<tr>
-<td class="lgrad"></td>
-<td class="center"><img src="title.jpg" alt="Mccodes Version 2" /><br />
-<!-- Begin Main Content -->
+<body class="mc26 auth" onload="getme();">
+<div class="auth-wrap">
 EOF;
 $IP = str_replace(['/', '\\', '\0'], '', $_SERVER['REMOTE_ADDR']);
 if (file_exists('ipbans/' . $IP))
@@ -37,51 +34,31 @@ if (file_exists('ipbans/' . $IP))
             </span></body></html>");
 }
 $year = date('Y');
-echo "<h3>&gt; {$set['game_name']} Log-In</h3>
-<table width='80%'>
-<tr>
-<td width='50%'>
-<fieldset>
-<legend>About {$set['game_name']}</legend>
-" . nl2br($set['game_description']) . '
-</fieldset>
-</td>
-<td>';
+echo "<section class='auth-hero'>
+<div class='brand'><span class='brand-mark'>" . strtoupper(substr((string)$set['game_name'], 0, 1)) . "</span><span class='brand-name'>{$set['game_name']}</span></div>
+<h1>Build your name. Take the city.</h1>
+<p class='auth-about'>" . nl2br($set['game_description']) . "</p>
+<a class='auth-cta' href='register.php'>Create a free account &rarr;</a>
+</section>";
 echo <<<EOF
-<fieldset>
-<legend>Login</legend>
+<section class="auth-card">
+<h2>Log in</h2>
 <form action='authenticate.php' method='POST' name='login' onsubmit='return saveme();'>
-Username: <input type='text' name='username' /><br />
-Password: <input type='password' name='password' /><br />
-Remember me?<br />
-<input type='radio' value='ON' name='save' /> Yes
-<input type='radio' value='OFF' name='save' /> No<br />
+<label>Username<input type='text' name='username' autocomplete='username' /></label>
+<label>Password<input type='password' name='password' autocomplete='current-password' /></label>
+<div class='auth-remember'><span>Remember me?</span>
+<label class='pill'><input type='radio' value='ON' name='save' /> Yes</label>
+<label class='pill'><input type='radio' value='OFF' name='save' /> No</label></div>
 <input type='hidden' name='verf' value='{$login_csrf}' />
-<input type='submit' value='Submit'>
+<input type='submit' value='Log in'>
 </form>
-</fieldset>
+<p class='auth-alt'>New here? <a href='register.php'>Register now</a></p>
+</section>
 EOF;
-echo "</td></tr></table><br />
-<h3><a href='register.php'>REGISTER NOW!</a></h3><br />
-<i><center>Powered by codes made by Dabomstew (&copy {$year}). Game Copyright &copy;{$year} {$set['game_owner']}.</center></i>";
+echo "<footer class='auth-foot'>Powered by codes made by Dabomstew (&copy; {$year}). Game Copyright &copy; {$year} {$set['game_owner']}.</footer>";
 print
         <<<OUT
-</td>
-<td class="rgrad"></td>
-</tr>
-<tr>
-<td colspan="3">
-<table cellpadding="0" cellspacing="0" border="0" width="100%">
-<tr>
-<td class="dgradl">&nbsp;</td>
-
-<td class="dgrad">&nbsp;</td>
-<td class="dgradr">&nbsp;</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
+</div>
 </body>
 </html>
 OUT;

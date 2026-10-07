@@ -23,6 +23,12 @@ $_POST['currency'] =
         (isset($_POST['currency'])
                 && in_array($_POST['currency'], ['money', 'crystals']))
                 ? $_POST['currency'] : 'money';
+if (!$_GET['ID'])
+{
+    echo 'Invalid Item ID';
+    $h->endpage();
+    exit;
+}
 if ($_POST['price'] && $_POST['QTY'] && $_GET['ID'])
 {
     if (!isset($_POST['verf'])

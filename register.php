@@ -21,22 +21,26 @@ function valid_email($email): bool
 }
 print
         <<<EOF
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<title>{$set['game_name']}</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<title>{$set['game_name']}: Register</title>
+<meta charset="iso-8859-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script type="text/javascript" src="{$set['jquery_location']}"></script>
 <script type="text/javascript" src="js/register.js"></script>
-<link href="css/register.css" type="text/css" rel="stylesheet" />
+<link href="css/game.css" type="text/css" rel="stylesheet" />
 </head>
-<body>
-<center>
-<table width="970" border="0" cellpadding="0" cellspacing="0" class="table2">
-<tr>
-<td class="lgrad"></td>
-<td class="center"><img src="title.jpg" alt="Mccodes Version 2" /><br />
-<!-- Begin Main Content -->
+<body class="mc26 auth">
+<div class="auth-wrap">
+<section class="auth-hero">
+<div class="brand"><span class="brand-mark">R</span><span class="brand-name">{$set['game_name']}</span></div>
+<h1>Your story starts here.</h1>
+<p class="auth-about">Pick a name, set a password and you're in. It takes under a minute.</p>
+<a class="auth-cta" href="login.php">Already playing? Log in &rarr;</a>
+</section>
+<section class="auth-card">
 EOF;
 $IP = str_replace(['/', '\\', '\0'], '', $_SERVER['REMOTE_ADDR']);
 if (file_exists('ipbans/' . $IP))
@@ -214,56 +218,26 @@ else
             $_SESSION['captcha'] .= $chars[rand(0, $len - 1)];
     }
 
-    echo "<h3>{$set['game_name']} Registration</h3>";
-    echo "<form action=register.php method=post>
-            <table width='75%' class='table' cellspacing='1'>
-                <tr>
-                    <td width='30%'>Username</td>
-                    <td width='40%'>
-                    	<input type='text' name='username'
-                    	 onkeyup='CheckUsername(this.value);' />
-                    </td>
-                    <td width='30%'><div id='usernameresult'></div></td>
-                </tr>
-                <tr>
-                    <td>Password</td>
-                    <td>
-                    	<input type='password' id='pw1' name='password'
-                    	 onkeyup='CheckPasswords(this.value);PasswordMatch();' />
-                    </td>
-                    <td><div id='passwordresult'></div></td>
-                </tr>
-                <tr>
-                    <td>Confirm Password</td>
-                    <td>
-                    	<input type='password' name='cpassword' id='pw2'
-                    	 onkeyup='PasswordMatch();' />
-                    </td>
-                    <td><div id='cpasswordresult'></div></td>
-                </tr>
-                <tr>
-                    <td>Email</td>
-                    <td>
-                    	<input type='text' name='email'
-                    	 onkeyup='CheckEmail(this.value);' />
-                    </td>
-                    <td><div id='emailresult'></div></td>
-                </tr>
-                <tr>
-                    <td>Gender</td>
-                    <td colspan='2'>
-                    	<select name='gender' type='dropdown'>
-                    	<option value='Male'>Male</option>
-                    	<option value='Female'>Female</option>
-                    	</select>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Promo Code</td>
-                    <td colspan='2'><input type='text' name='promo' /></td>
-                </tr>
-
-                <input type='hidden' name='ref' value='";
+    echo "<h2>Create your account</h2>";
+    echo "<form action='register.php' method='post' class='reg'>
+            <label>Username
+                <input type='text' name='username' autocomplete='username' onkeyup='CheckUsername(this.value);' />
+                <span class='hint' id='usernameresult'></span></label>
+            <label>Password
+                <input type='password' id='pw1' name='password' autocomplete='new-password' onkeyup='CheckPasswords(this.value);PasswordMatch();' />
+                <span class='hint' id='passwordresult'></span></label>
+            <label>Confirm password
+                <input type='password' name='cpassword' id='pw2' autocomplete='new-password' onkeyup='PasswordMatch();' />
+                <span class='hint' id='cpasswordresult'></span></label>
+            <label>Email
+                <input type='email' name='email' autocomplete='email' onkeyup='CheckEmail(this.value);' />
+                <span class='hint' id='emailresult'></span></label>
+            <div class='reg-row'>
+                <label>Gender
+                    <select name='gender'><option value='Male'>Male</option><option value='Female'>Female</option></select></label>
+                <label>Promo code <input type='text' name='promo' /></label>
+            </div>
+            <input type='hidden' name='ref' value='";
     if (!isset($_GET['REF']))
     {
         $_GET['REF'] = 0;
@@ -276,22 +250,14 @@ else
     echo "' />";
     if ($set['regcap_on'])
     {
-        echo "<tr>
-				<td colspan='3'>
-					<img src='captcha_verify.php?bgcolor=C3C3C3' /><br />
-					<input type='text' name='captcha' />
-				</td>
-			  </tr>";
+        echo "<label>Type the characters shown
+                <img class='captcha' src='captcha_verify.php?bgcolor=C3C3C3' alt='Captcha' />
+                <input type='text' name='captcha' autocomplete='off' /></label>";
     }
     echo "
-			<tr>
-				<td colspan='3' align='center'>
-					<input type='submit' value='Submit' />
-				</td>
-			</tr>
-	</table>
-	</form><br />
-	&gt; <a href='login.php'>Go Back</a>";
+            <input type='submit' value='Create account' />
+	</form>
+	<p class='auth-alt'>Already have an account? <a href='login.php'>Log in</a></p>";
 }
 register_footer();
 
@@ -303,22 +269,8 @@ function register_footer(): void
     print
             <<<OUT
 
-</td>
-<td class="rgrad"></td>
-</tr>
-<tr>
-<td colspan="3">
-<table cellpadding="0" cellspacing="0" border="0" width="100%">
-<tr>
-<td class="dgradl">&nbsp;</td>
-<td class="dgrad">&nbsp;</td>
-<td class="dgradr">&nbsp;</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-</center>
+</section>
+</div>
 </body>
 </html>
 OUT;

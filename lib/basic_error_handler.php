@@ -75,10 +75,38 @@ function error_critical($human_error, $debug_error, $action): void
  * @param array $errcontext
  * @return void
  */
+/**
+ * Warnings that were notices before PHP 8.
+ */
+function mcc_is_legacy_notice(string $errstr): bool
+{
+    foreach (['Undefined array key', 'Undefined variable', 'Undefined property',
+                 'Trying to access array offset on value of type null',
+                 'Trying to access array offset on null',
+                 'Undefined offset', 'Undefined index'] as $prefix)
+    {
+        if (str_starts_with($errstr, $prefix))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 function error_php($errno, $errstr, string $errfile = '', int $errline = 0,
                    array $errcontext = []): void
 {
     // What's happened?
+    // PHP 8 promoted several PHP 7 *notices* to warnings ("Undefined array
+    // key", "Undefined variable"...). This engine was written to ignore
+    // notices, so treating these as fatal killed whole pages over a missing
+    // ?action= or ID. They are logged and the page carries on, as on PHP 7;
+    // every other warning still stops the page.
+    if ($errno == E_WARNING && mcc_is_legacy_notice((string)$errstr))
+    {
+        error_log("MCCodes notice: {$errstr} in {$errfile}:{$errline}");
+        return;
+    }
     // If it's a PHP warning or user error/warning, don't go further - indicates bad code, unsafe
     if ($errno == E_WARNING)
     {
