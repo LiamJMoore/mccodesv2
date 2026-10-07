@@ -125,6 +125,8 @@ EOF;
   </div>
   <a class="logout" href="logout.php">Emergency logout</a>
 </section>
+<input type="checkbox" id="navt" class="nav-toggle" hidden />
+<label for="navt" class="nav-btn">Menu</label>
 <nav class="side-nav">
 <!-- Links -->
 OUT;

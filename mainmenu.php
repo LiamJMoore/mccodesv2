@@ -82,14 +82,15 @@ if (is_staff())
 	<hr />
 	<a href='staff.php'>Staff Panel</a><br />
 	<hr />
-	<b>Staff Online:</b><br />
+	<b>Staff Online:</b><div class=\"nav-online\">
    	";
     $online_staff = get_online_staff();
     foreach ($online_staff as $r)
     {
         echo '<a href="viewuser.php?u=' . $r['userid'] . '">' . $r['username']
-                . '</a> (' . datetime_parse($r['laston']) . ')<br />';
+                . '</a> <small>' . datetime_parse($r['laston']) . '</small>';
     }
+    echo '</div>';
 }
 if ($ir['donatordays'])
 {
@@ -107,6 +108,5 @@ echo "
 <a href='helptutorial.php'>Help Tutorial</a><br />
 <a href='gamerules.php'>Game Rules</a><br />
 <a href='viewuser.php?u={$ir['userid']}'>My Profile</a><br />
-<a href='logout.php'>Logout</a><br /><br />
-Time is now<br />
-" . date('F j, Y') . '<br />' . date('g:i:s a');
+<a href='logout.php'>Logout</a>
+<div class='nav-clock'>" . date('F j, Y') . ' &middot; ' . date('g:i a') . '</div>';
