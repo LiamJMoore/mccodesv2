@@ -24,7 +24,7 @@ echo '
 <br />
    ';
 
-switch ($_GET['action'])
+switch ($_GET['action'] ?? '')
 {
 case 'add':
     add_contact();

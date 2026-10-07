@@ -7,7 +7,7 @@
 CREATE TABLE `announcements` (
   `a_text` text NOT NULL,
   `a_time` int(11) NOT NULL default '0'
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `announcements`
@@ -26,7 +26,7 @@ CREATE TABLE `applications` (
   `appGANG` int(11) NOT NULL default '0',
   `appTEXT` text NOT NULL,
   PRIMARY KEY  (`appID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `applications`
@@ -48,7 +48,7 @@ CREATE TABLE `attacklogs` (
   `stole` int(11) NOT NULL default '0',
   `attacklog` longtext NOT NULL,
   PRIMARY KEY  (`log_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `attacklogs`
@@ -71,7 +71,7 @@ CREATE TABLE `bankxferlogs` (
   `cxTOIP` varchar(15) NOT NULL default '127.0.0.1',
   `cxBANK` enum('bank','cyber') NOT NULL default 'bank',
   PRIMARY KEY  (`cxID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `bankxferlogs`
@@ -90,7 +90,7 @@ CREATE TABLE `blacklist` (
   `bl_ADDED` int(11) NOT NULL default '0',
   `bl_COMMENT` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`bl_ID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `blacklist`
@@ -112,7 +112,7 @@ CREATE TABLE `cashxferlogs` (
   `cxFROMIP` varchar(15) NOT NULL default '127.0.0.1',
   `cxTOIP` varchar(15) NOT NULL default '127.0.0.1',
   PRIMARY KEY  (`cxID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `cashxferlogs`
@@ -128,7 +128,7 @@ CREATE TABLE `cashxferlogs` (
 CREATE TABLE `challengebots` (
   `cb_npcid` int(11) NOT NULL default '0',
   `cb_money` int(11) NOT NULL default '0'
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `challengebots`
@@ -144,7 +144,7 @@ CREATE TABLE `challengebots` (
 CREATE TABLE `challengesbeaten` (
   `userid` int(11) NOT NULL default '0',
   `npcid` int(11) NOT NULL default '0'
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `challengesbeaten`
@@ -163,7 +163,7 @@ CREATE TABLE `cities` (
   `citydesc` longtext NOT NULL,
   `cityminlevel` int(11) NOT NULL default '0',
   PRIMARY KEY  (`cityid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `cities`
@@ -183,7 +183,7 @@ CREATE TABLE `contactlist` (
   `cl_ADDER` int(11) NOT NULL default '0',
   `cl_ADDED` int(11) NOT NULL default '0',
   PRIMARY KEY  (`cl_ID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `contactlist`
@@ -209,7 +209,7 @@ CREATE TABLE `courses` (
   `crAGIL` int(11) NOT NULL default '0',
   `crIQ` int(11) NOT NULL default '0',
   PRIMARY KEY  (`crID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `courses`
@@ -225,7 +225,7 @@ CREATE TABLE `courses` (
 CREATE TABLE `coursesdone` (
   `userid` int(11) NOT NULL default '0',
   `courseid` int(11) NOT NULL default '0'
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `coursesdone`
@@ -243,7 +243,7 @@ CREATE TABLE `crimegroups` (
   `cgNAME` varchar(255) NOT NULL default '',
   `cgORDER` int(11) NOT NULL default '0',
   PRIMARY KEY  (`cgID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `crimegroups`
@@ -273,7 +273,7 @@ CREATE TABLE `crimes` (
   `crimeJREASON` varchar(255) NOT NULL default '',
   `crimeXP` int(11) NOT NULL default '0',
   PRIMARY KEY  (`crimeID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `crimes`
@@ -292,7 +292,7 @@ CREATE TABLE `crystalmarket` (
   `cmADDER` int(11) NOT NULL default '0',
   `cmPRICE` int(11) NOT NULL default '0',
   PRIMARY KEY  (`cmID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `crystalmarket`
@@ -314,7 +314,7 @@ CREATE TABLE `crystalxferlogs` (
   `cxFROMIP` varchar(15) NOT NULL default '127.0.0.1',
   `cxTOIP` varchar(15) NOT NULL default '127.0.0.1',
   PRIMARY KEY  (`cxID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `crystalxferlogs`
@@ -335,7 +335,7 @@ CREATE TABLE `dps_accepted` (
   `dpTIME` int(11) NOT NULL default '0',
   `dpTXN` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`dpID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `dps_accepted`
@@ -355,7 +355,7 @@ CREATE TABLE `events` (
   `evREAD` int(11) NOT NULL default '0',
   `evTEXT` text NOT NULL,
   PRIMARY KEY  (`evID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `events`
@@ -376,7 +376,7 @@ CREATE TABLE `fedjail` (
   `fed_reason` text NOT NULL,
   PRIMARY KEY  (`fed_id`),
   UNIQUE (`fed_userid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `fedjail`
@@ -403,7 +403,7 @@ CREATE TABLE IF NOT EXISTS `forum_forums` (
   `ff_auth` enum('public','gang','staff') NOT NULL default 'public',
   `ff_owner` int(11) NOT NULL default '0',
   PRIMARY KEY  (`ff_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `forum_forums`
@@ -430,7 +430,7 @@ CREATE TABLE IF NOT EXISTS `forum_posts` (
   `fp_editor_time` int(11) NOT NULL default '0',
   `fp_edit_count` int(11) NOT NULL default '0',
   PRIMARY KEY  (`fp_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `forum_posts`
@@ -458,7 +458,7 @@ CREATE TABLE IF NOT EXISTS `forum_topics` (
   `ft_pinned` tinyint(4) NOT NULL default '0',
   `ft_locked` tinyint(4) NOT NULL default '0',
   PRIMARY KEY  (`ft_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `forum_topics`
@@ -477,7 +477,7 @@ CREATE TABLE `friendslist` (
   `fl_ADDED` int(11) NOT NULL default '0',
   `fl_COMMENT` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`fl_ID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `friendslist`
@@ -496,7 +496,7 @@ CREATE TABLE `gangevents` (
   `gevTIME` int(11) NOT NULL default '0',
   `gevTEXT` text NOT NULL,
   PRIMARY KEY  (`gevID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `gangevents`
@@ -525,7 +525,7 @@ CREATE TABLE `gangs` (
   `gangCHOURS` int(11) NOT NULL default '0',
   `gangAMENT` longtext NOT NULL,
   PRIMARY KEY  (`gangID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `gangs`
@@ -544,7 +544,7 @@ CREATE TABLE `gangwars` (
   `warDECLARED` int(11) NOT NULL default '0',
   `warTIME` int(11) NOT NULL default '0',
   PRIMARY KEY  (`warID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `gangwars`
@@ -563,7 +563,7 @@ CREATE TABLE `houses` (
   `hPRICE` int(11) NOT NULL default '0',
   `hWILL` int(11) NOT NULL default '0',
   PRIMARY KEY  (`hID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `houses`
@@ -587,7 +587,7 @@ CREATE TABLE `imarketaddlogs` (
   `imaTIME` int(11) NOT NULL default '0',
   `imaCONTENT` text NOT NULL,
   PRIMARY KEY  (`imaID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `imarketaddlogs`
@@ -611,7 +611,7 @@ CREATE TABLE `imbuylogs` (
   `imbTIME` int(11) NOT NULL default '0',
   `imbCONTENT` text NOT NULL,
   PRIMARY KEY  (`imbID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `imbuylogs`
@@ -634,7 +634,7 @@ CREATE TABLE `imremovelogs` (
   `imrTIME` int(11) NOT NULL default '0',
   `imrCONTENT` text NOT NULL,
   PRIMARY KEY  (`imrID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `imremovelogs`
@@ -653,7 +653,7 @@ CREATE TABLE `inventory` (
   `inv_userid` int(11) NOT NULL default '0',
   `inv_qty` int(11) NOT NULL default '0',
   PRIMARY KEY  (`inv_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `inventory`
@@ -675,7 +675,7 @@ CREATE TABLE `itembuylogs` (
   `ibTIME` int(11) NOT NULL default '0',
   `ibCONTENT` text NOT NULL,
   PRIMARY KEY  (`ibID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `itembuylogs`
@@ -696,7 +696,7 @@ CREATE TABLE `itemmarket` (
   `imCURRENCY` enum('money','crystals') NOT NULL default 'money',
   `imQTY` int(11) NOT NULL default '0',
   PRIMARY KEY  (`imID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `itemmarket`
@@ -726,7 +726,7 @@ CREATE TABLE `items` (
   `weapon` int(11) NOT NULL default '0',
   `armor` int(11) NOT NULL default '0',
   PRIMARY KEY  (`itmid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `items`
@@ -748,7 +748,7 @@ CREATE TABLE `itemselllogs` (
   `isTIME` int(11) NOT NULL default '0',
   `isCONTENT` text NOT NULL,
   PRIMARY KEY  (`isID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `itemselllogs`
@@ -765,7 +765,7 @@ CREATE TABLE `itemtypes` (
   `itmtypeid` int(11) NOT NULL auto_increment,
   `itmtypename` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`itmtypeid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `itemtypes`
@@ -788,7 +788,7 @@ CREATE TABLE `itemxferlogs` (
   `ixFROMIP` varchar(255) NOT NULL default '',
   `ixTOIP` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`ixID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `itemxferlogs`
@@ -809,7 +809,7 @@ CREATE TABLE `jaillogs` (
   `jaREASON` longtext NOT NULL,
   `jaTIME` int(11) NOT NULL default '0',
   PRIMARY KEY  (`jaID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `jaillogs`
@@ -834,7 +834,7 @@ CREATE TABLE `jobranks` (
   `jrLABOURN` int(11) NOT NULL default '0',
   `jrSTRN` int(11) NOT NULL default '0',
   PRIMARY KEY  (`jrID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `jobranks`
@@ -854,7 +854,7 @@ CREATE TABLE `jobs` (
   `jDESC` varchar(255) NOT NULL default '',
   `jOWNER` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`jID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `jobs`
@@ -876,7 +876,7 @@ CREATE TABLE `mail` (
   `mail_subject` varchar(255) NOT NULL default '',
   `mail_text` text NOT NULL,
   PRIMARY KEY  (`mail_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `mail`
@@ -899,7 +899,7 @@ CREATE TABLE `oclogs` (
   `ocCRIMEN` varchar(255) NOT NULL default '',
   `ocTIME` int(11) NOT NULL default '0',
   PRIMARY KEY  (`oclID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `oclogs`
@@ -922,7 +922,7 @@ CREATE TABLE `orgcrimes` (
   `ocMINMONEY` int(11) NOT NULL default '0',
   `ocMAXMONEY` int(11) NOT NULL default '0',
   PRIMARY KEY  (`ocID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `orgcrimes`
@@ -937,7 +937,7 @@ CREATE TABLE `orgcrimes` (
 
 CREATE TABLE `papercontent` (
   `content` longtext NOT NULL
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 INSERT INTO `papercontent` VALUES('Here you can put game news, or prehaps an update log.');
 
@@ -976,7 +976,7 @@ CREATE TABLE `polls` (
   `winner` int(11) NOT NULL default '0',
   `hidden` tinyint(4) NOT NULL default '0',
   PRIMARY KEY  (`id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `polls`
@@ -995,7 +995,7 @@ CREATE TABLE `preports` (
   `prREPORTED` int(11) NOT NULL default '0',
   `prTEXT` longtext NOT NULL,
   PRIMARY KEY  (`prID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `preports`
@@ -1016,7 +1016,7 @@ CREATE TABLE `referals` (
   `refREFERIP` varchar(15) NOT NULL default '127.0.0.1',
   `refREFEDIP` varchar(15) NOT NULL default '127.0.0.1',
   PRIMARY KEY  (`refID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `referals`
@@ -1035,7 +1035,7 @@ CREATE TABLE `settings` (
   `conf_value` text NOT NULL,
   `data_type` varchar(16) NOT NULL default 'string',
   PRIMARY KEY  (`conf_id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 INSERT INTO `settings` VALUES (NULL, 'validate_period', '15', 'string');
 INSERT INTO `settings` VALUES (NULL, 'validate_on', '0', 'bool');
@@ -1064,7 +1064,7 @@ CREATE TABLE `shopitems` (
   `sitemSHOP` int(11) NOT NULL default '0',
   `sitemITEMID` int(11) NOT NULL default '0',
   PRIMARY KEY  (`sitemID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `shopitems`
@@ -1083,7 +1083,7 @@ CREATE TABLE `shops` (
   `shopNAME` varchar(255) NOT NULL default '',
   `shopDESCRIPTION` text NOT NULL,
   PRIMARY KEY  (`shopID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `shops`
@@ -1103,7 +1103,7 @@ CREATE TABLE `stafflog` (
   `action` varchar(255) NOT NULL default '',
   `ip` varchar(15) NOT NULL default '',
   PRIMARY KEY  (`id`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `stafflog`
@@ -1124,7 +1124,7 @@ CREATE TABLE `staffnotelogs` (
   `snOLD` longtext NOT NULL,
   `snNEW` longtext NOT NULL,
   PRIMARY KEY  (`snID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `staffnotelogs`
@@ -1144,7 +1144,7 @@ CREATE TABLE `surrenders` (
   `surTO` int(11) NOT NULL default '0',
   `surMSG` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`surID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `surrenders`
@@ -1163,7 +1163,7 @@ CREATE TABLE `unjaillogs` (
   `ujaJAILED` int(11) NOT NULL default '0',
   `ujaTIME` int(11) NOT NULL default '0',
   PRIMARY KEY  (`ujaID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `unjaillogs`
@@ -1247,7 +1247,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `force_logout` tinyint(4) NOT NULL default '0',
   `pass_salt` varchar(8) NOT NULL default '',
   PRIMARY KEY  (`userid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 --
 -- Dumping data for table `users`
 --
@@ -1267,7 +1267,7 @@ CREATE TABLE `userstats` (
   `labour` float NOT NULL default '0',
   `IQ` float NOT NULL default '0',
   PRIMARY KEY  (`userid`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `userstats`
@@ -1283,7 +1283,7 @@ CREATE TABLE `userstats` (
 CREATE TABLE `votes` (
   `userid` int(11) NOT NULL default '0',
   `list` varchar(255) NOT NULL default ''
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `votes`
@@ -1304,7 +1304,7 @@ CREATE TABLE `willps_accepted` (
   `dpTIME` int(11) NOT NULL default '0',
   `dpTXN` varchar(255) NOT NULL default '',
   PRIMARY KEY  (`dpID`)
-) ENGINE=MyISAM ;
+) ENGINE=InnoDB ;
 
 --
 -- Dumping data for table `willps_accepted`
@@ -1411,7 +1411,7 @@ CREATE TABLE `staff_roles`
     `use_staff_forums`      BOOL         NOT NULL DEFAULT FALSE,
     `view_logs`             BOOL         NOT NULL DEFAULT FALSE,
     `view_user_inventory`   BOOL         NOT NULL DEFAULT FALSE
-);
+) ENGINE=InnoDB;
 
 --
 -- Dumping data for table `willps_accepted`
@@ -1430,9 +1430,11 @@ INSERT INTO `staff_roles` (`name`, `view_logs`, `manage_punishments`, `use_staff
 CREATE TABLE users_roles
 (
     id         INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    userid     INT NOT NULL REFERENCES users (userid),
-    staff_role INT NOT NULL REFERENCES staff_roles (id)
-);
+    userid     INT NOT NULL,
+    staff_role INT NOT NULL,
+    KEY userid (userid),
+    KEY staff_role (staff_role)
+) ENGINE=InnoDB;
 
 -- --------------------------------------------------------
 

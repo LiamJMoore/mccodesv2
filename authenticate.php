@@ -98,7 +98,8 @@ else
                  SET `verified` = 0
                  WHERE `userid` = {$mem['userid']}");
     }
-    $loggedin_url = 'https://' . determine_game_urlbase() . '/loggedin.php';
-    header("Location: {$loggedin_url}");
+    // Relative, so it follows whatever scheme the game is served on (a
+    // hard-coded https:// broke logins on plain-http installs).
+    header('Location: loggedin.php');
     exit;
 }
