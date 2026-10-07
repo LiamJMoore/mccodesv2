@@ -32,19 +32,18 @@ class headers
     {
         global $set;
         echo <<<EOF
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta charset="iso-8859-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link href="css/game.css" type="text/css" rel="stylesheet" />
 <title>{$set['game_name']}</title>
 </head>
-<body>
-<center>
-<table width="970" border="0" cellpadding="0" cellspacing="0" class="table2">
-<tr>
-<td class="lgrad"></td>
-<td class="center">
+<body class="mc26">
+<div class="app">
 EOF;
     }
 
@@ -103,30 +102,30 @@ EOF;
         $gn = '';
         $bgcolor = 'FFFFFF';
 
+        $initial = strtoupper(substr((string)$ir['username'], 0, 1));
         print
             <<<OUT
-<img src="title.jpg" alt="Mccodes Version 2" /><br />
-<!-- Begin Main Content -->
-<table width="100%" border="0" cellpadding="0" cellspacing="0">
-<tr>
-<td width="20%" bgcolor="#$bgcolor" valign="top">
-<!-- Side Panel -->
-<b>Name:</b> $gn{$u} [{$ir['userid']}] $d<br />
-<b>Money:</b> {$fm}<br />
-<b>Level:</b> {$ir['level']}<br />
-<b>Crystals:</b> {$ir['crystals']}<br />
-[<a href='logout.php'>Emergency Logout</a>]
-<hr />
-<b>Energy:</b> {$enperc}%<br />
-<img src='greenbar.png' width='$enperc' height='10' /><img src='redbar.png' width='$enopp' height='10' /><br />
-<b>Will:</b> {$wiperc}%<br />
-<img src='bluebar.png' width='$wiperc' height='10' /><img src='redbar.png' width='$wiopp' height='10' /><br />
-<b>Brave:</b> {$ir['brave']}/{$ir['maxbrave']}<br />
-<img src='yellowbar.png' width='$brperc' height='10' /><img src='redbar.png' width='$bropp' height='10' /><br />
-<b>EXP:</b> {$experc}%<br />
-<img src='bluebar.png' width='$experc' height='10' /><img src='redbar.png' width='$exopp' height='10' /><br />
-<b>Health:</b> {$hpperc}%<br />
-<img src='greenbar.png' width='$hpperc' height='10' /><img src='redbar.png' width='$hpopp' height='10' /><br /><hr />
+<aside class="side">
+<a class="brand" href="index.php"><span class="brand-mark">{$initial}</span><span class="brand-name">{$set['game_name']}</span></a>
+<section class="player">
+  <div class="player-top">
+    <span class="avatar">{$initial}</span>
+    <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level {$ir['level']}</small></div>
+  </div>
+  <div class="wallet">
+    <div><small>Money</small><b>{$fm}</b></div>
+    <div><small>Crystals</small><b>{$ir['crystals']}</b></div>
+  </div>
+  <div class="meters">
+    <div class="meter m-energy"><span>Energy</span><em>{$enperc}%</em><i style="--v:{$enperc}%"></i></div>
+    <div class="meter m-will"><span>Will</span><em>{$wiperc}%</em><i style="--v:{$wiperc}%"></i></div>
+    <div class="meter m-brave"><span>Brave</span><em>{$ir['brave']}/{$ir['maxbrave']}</em><i style="--v:{$brperc}%"></i></div>
+    <div class="meter m-exp"><span>EXP</span><em>{$experc}%</em><i style="--v:{$experc}%"></i></div>
+    <div class="meter m-hp"><span>Health</span><em>{$hpperc}%</em><i style="--v:{$hpperc}%"></i></div>
+  </div>
+  <a class="logout" href="logout.php">Emergency logout</a>
+</section>
+<nav class="side-nav">
 <!-- Links -->
 OUT;
         if ($ir['fedjail'] > 0) {
@@ -162,17 +161,15 @@ OUT;
         include 'mainmenu.php';
         global $ir, $set;
         $bgcolor = 'FFFFFF';
-        print
-            '</td><td width="2" class="linegrad" bgcolor="#' . $bgcolor
-            . '">&nbsp;</td><td width="80%"  bgcolor="#'
-            . $bgcolor . '" valign="top"><br /><center>';
+        print '</nav></aside><main class="main"><div class="notices">';
         if ($ir['hospital']) {
-            echo "<b>NB:</b> You are currently in hospital for {$ir['hospital']} minutes.<br />";
+            echo "<div class='notice n-hosp'><b>In hospital</b> for {$ir['hospital']} minutes.</div>";
         }
         if ($ir['jail']) {
-            echo "<b>NB:</b> You are currently in jail for {$ir['jail']} minutes.<br />";
+            echo "<div class='notice n-jail'><b>In jail</b> for {$ir['jail']} minutes.</div>";
         }
-        echo "<a href='donator.php'><b>Donate to {$set['game_name']} now for game benefits!</b></a><br />";
+        echo "<a class='notice n-donate' href='donator.php'><b>Support {$set['game_name']}</b> and unlock donator perks &rarr;</a>";
+        echo '</div><div class="page"><center>';
     }
 
     /**
@@ -184,10 +181,7 @@ OUT;
         define('JDSF45TJI', true);
         include 'smenu.php';
         $bgcolor = 'FFFFFF';
-        print
-            '</td><td width="2" class="linegrad" bgcolor="#' . $bgcolor
-            . '">&nbsp;</td><td width="80%"  bgcolor="#'
-            . $bgcolor . '" valign="top"><center>';
+        print '</nav></aside><main class="main staff"><div class="page"><center>';
     }
 
     /**
@@ -202,25 +196,11 @@ OUT;
         }
         print
             <<<OUT
-</center>
-</td>
-</tr>
-</table></td>
-<td class="rgrad"></td>
-</tr>
-<tr>
-<td colspan="3">
-<table cellpadding="0" cellspacing="0" border="0" width="100%">
-<tr>
-<td class="dgradl">&nbsp;</td>
-<td class="dgrad">&nbsp;</td>
-<td class="dgradr">&nbsp;</td>
-</tr>
-</table>
-</td>
-</tr>
-</table>
-                {$db->num_queries} queries{$query_extra}</body>
+</center></div>
+<footer class="foot">{$db->num_queries} queries{$query_extra}</footer>
+</main>
+</div>
+</body>
 </html>
 OUT;
     }
