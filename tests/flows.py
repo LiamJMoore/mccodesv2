@@ -310,14 +310,156 @@ def daily(srv):
     sql("UPDATE users SET money = 100, crystals = 10 WHERE userid = 2")
 
 
+def one(query):
+    return sql(query)[0][0]
+
+
+def token(sess, path):
+    _, _, page = sess.get(path)
+    return re.search(r"name='verf' value='([^']+)'", page).group(1)
+
+
+def gym(srv):
+    print("Gym")
+    sql("UPDATE users SET energy = 10, will = 100, jail = 0, hospital = 0 WHERE userid = 2")
+    sql("UPDATE userstats SET strength = 10 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    s.get("/gym.php", {"stat": "Strength", "amnt": "5", "verf": "wrong"})
+    check(one("SELECT energy FROM users WHERE userid = 2") == "10", "training without the form's token uses no energy")
+    (_, _, body), _ = s.form("/gym.php", {"stat": "Strength", "amnt": "11"})
+    check("do not have enough energy" in body and one("SELECT energy FROM users WHERE userid = 2") == "10", "training more times than you have energy is refused")
+    (_, _, body), _ = s.form("/gym.php", {"stat": "Strength", "amnt": "4"})
+    check("You have gained" in body and one("SELECT energy FROM users WHERE userid = 2") == "6" and float(one("SELECT strength FROM userstats WHERE userid = 2")) > 10,
+          "training spends the energy and raises the stat")
+    sql("UPDATE users SET energy = 10, will = 100 WHERE userid = 2")
+    sql("UPDATE userstats SET strength = 10 WHERE userid = 2")
+
+    def train(sess, prepare=False, prepared=None):
+        if prepare:
+            return token(sess, "/gym.php")
+        _, _, body = sess.get("/gym.php", {"stat": "Strength", "amnt": "10", "verf": prepared})
+        return "You have gained" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, train)
+    check(sum(out) == 1 and one("SELECT energy FROM users WHERE userid = 2") == "0", "ten logins spending the same 10 energy at once: one trains, and energy never goes below zero",
+          (sum(out), one("SELECT energy FROM users WHERE userid = 2")))
+    sql("UPDATE users SET energy = 12, will = 100 WHERE userid = 2")
+
+
+def crimes(srv):
+    print("Crimes")
+    sql("UPDATE users SET brave = 5, money = 0, crystals = 0, exp = 0, crimexp = 0, jail = 0, hospital = 0 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/docrime.php?c=1")
+    b = balances(2)
+    check("You find 80 dollars" in body and b["money"] == 80 and b["crystals"] == 1 and one("SELECT brave FROM users WHERE userid = 2") == "4",
+          "a crime that always succeeds pays its money and crystals and costs its brave", (b, body[-300:]))
+    _, _, body = s.get("/docrime.php?c=3")
+    check("not been set up correctly" in body and "uid=" not in body and one("SELECT brave FROM users WHERE userid = 2") == "4",
+          "a crime whose formula is PHP code is not run, and costs nothing")
+    _, _, body = s.get("/docrime.php?c=999")
+    check("Invalid crime" in body, "a crime that does not exist is refused")
+    sql("UPDATE users SET brave = 1, money = 0, crystals = 0, exp = 0, level = 1 WHERE userid = 2")
+
+    def crime(sess, prepare=False, prepared=None):
+        if prepare:
+            return None
+        _, _, body = sess.get("/docrime.php?c=1")
+        return "You find 80 dollars" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, crime)
+    check(sum(out) == 1 and balances(2)["money"] == 80 and one("SELECT brave FROM users WHERE userid = 2") == "0",
+          "ten logins committing a crime on the last point of brave: one crime, one payout", (sum(out), balances(2)["money"]))
+    sql("UPDATE users SET brave = 5, money = 100, crystals = 10, exp = 0, crimexp = 0, jail = 0 WHERE userid = 2")
+
+
+def temple(srv):
+    print("Crystal temple")
+    price, iq, cash = (int(one(f"SELECT conf_value FROM settings WHERE conf_name = '{n}'")) for n in ("ct_refillprice", "ct_iqpercrys", "ct_moneypercrys"))
+    sql(f"UPDATE users SET crystals = {price}, energy = 0, money = 0 WHERE userid = 2")
+    sql("UPDATE userstats SET IQ = 10 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    s.get("/crystaltemple.php?spend=refill2", {"verf": "wrong"})
+    check(balances(2)["crystals"] == price, "a refill without the form's token takes nothing")
+
+    def refill(sess, prepare=False, prepared=None):
+        if prepare:
+            return token(sess, "/crystaltemple.php?spend=refill")
+        _, _, body = sess.get("/crystaltemple.php?spend=refill2", {"verf": prepared})
+        return "to refill your energy bar" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, refill)
+    check(sum(out) == 1 and balances(2)["crystals"] == 0 and one("SELECT energy = maxenergy FROM users WHERE userid = 2") == "1",
+          "ten logins buying a refill with crystals for one: one refill, and crystals never go below zero", (sum(out), balances(2)["crystals"]))
+
+    sql("UPDATE users SET crystals = 10, money = 0 WHERE userid = 2")
+
+    def swap_iq(sess, prepare=False, prepared=None):
+        if prepare:
+            return token(sess, "/crystaltemple.php?spend=IQ")
+        _, _, body = sess.get("/crystaltemple.php?spend=IQ2", {"crystals": "10", "verf": prepared})
+        return "You traded" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, swap_iq)
+    got = float(one("SELECT IQ FROM userstats WHERE userid = 2"))
+    check(sum(out) == 1 and balances(2)["crystals"] == 0 and got == 10 + 10 * iq, "ten logins swapping the same 10 crystals for IQ at once: the IQ is given once", (sum(out), got))
+
+    sql("UPDATE users SET crystals = 10, money = 0 WHERE userid = 2")
+
+    def swap_cash(sess, prepare=False, prepared=None):
+        if prepare:
+            return token(sess, "/crystaltemple.php?spend=money")
+        _, _, body = sess.get("/crystaltemple.php?spend=money2", {"crystals": "10", "verf": prepared})
+        return "You traded" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, swap_cash)
+    b = balances(2)
+    check(sum(out) == 1 and b["crystals"] == 0 and b["money"] == 10 * cash, "ten logins swapping the same 10 crystals for money at once: the money is given once", (sum(out), b))
+    (_, _, body), _ = s.form("/crystaltemple.php?spend=money2", {"crystals": "1"}, token_from="/crystaltemple.php?spend=money")
+    check("do not have enough crystals" in body and balances(2)["money"] == 10 * cash, "swapping crystals you do not have is refused")
+    sql("UPDATE users SET crystals = 10, money = 100, energy = 12 WHERE userid = 2")
+    sql("UPDATE userstats SET IQ = 10 WHERE userid = 2")
+
+
+def crons(srv):
+    print("Timed updates (crons run by page loads)")
+    sql("UPDATE users SET brave = 0, maxbrave = 5, energy = 0, maxenergy = 12, donatordays = 0 WHERE userid = 2")
+
+    def load(sess, prepare=False, prepared=None):
+        if prepare:             # everyone is logged in by now: make the update due
+            sql("UPDATE cron_times SET last_run = NOW() - INTERVAL 6 MINUTE WHERE name = 'minute-5'")
+            sql("UPDATE users SET brave = 0 WHERE userid = 2")
+            sql("DELETE FROM logs_cron_runtimes")
+            return None
+        return sess.get("/explore.php")[0] == 200
+    out = at_once(srv.base, "player1", "playerpass1", 10, load)
+    brave = one("SELECT brave FROM users WHERE userid = 2")
+    runs = one("SELECT COUNT(*) FROM logs_cron_runtimes WHERE cron = 'minute-5'")
+    check(all(out) and brave == "1" and runs == "1", "ten page loads arriving when a five-minute update is due: it runs once, so brave regenerates once", (brave, runs))
+    sql("UPDATE cron_times SET last_run = NOW() + INTERVAL 1 DAY")
+    sql("UPDATE users SET brave = 5, energy = 12 WHERE userid = 2")
+
+    # levelling up: level 1 needs 17 experience
+    sql("UPDATE users SET level = 1, exp = 40, brave = 0, maxbrave = 5, energy = 0, maxenergy = 12 WHERE userid = 2")
+    out = at_once(srv.base, "player1", "playerpass1", 10, lambda sess, prepare=False, prepared=None: None if prepare else sess.get("/explore.php")[0] == 200)
+    lv = sql("SELECT level, exp, brave, maxbrave FROM users WHERE userid = 2")[0]
+    check([float(x) for x in lv] == [2, 23, 2, 7], "ten page loads arriving when a level-up is due: one level, one set of bonuses, and the spare experience is kept", lv)
+    sql("UPDATE users SET level = 1, exp = 0, brave = 5, maxbrave = 5, energy = 12, maxenergy = 12, hp = 100, maxhp = 100 WHERE userid = 2")
+
+
 def main():
     with Server(8770) as srv:
+        sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0")
+        sql("UPDATE cron_times SET last_run = NOW() + INTERVAL 1 DAY")      # no timed update lands in the middle of a flow
+        crons(srv)
         shop(srv)
         markets(srv)
         bank(srv)
         cyberbank(srv)
         sending(srv)
         daily(srv)
+        gym(srv)
+        crimes(srv)
+        temple(srv)
+    sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
 

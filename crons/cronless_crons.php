@@ -57,6 +57,17 @@ foreach ($diffs as $name => $conf) {
     $diff = get_time_diff($crons[$name]);
     if ($diff >= $conf['diff']) {
         $times = floor($diff / $conf['diff']);
+        // Engine v3: claim the run before doing it. Every page load that arrives while a run is due sees the same
+        // old time; in v2 each of them ran the cron, so loading several pages at the tick regenerated energy and
+        // brave several times over. This statement moves the time on only if it is still the one we read, so
+        // exactly one request wins and the rest carry on without running anything.
+        $d = (int)$conf['diff'];
+        $claimed = $db->exec(
+            "UPDATE `cron_times` SET `last_run` = CONCAT(DATE_FORMAT(NOW(), '%Y-%m-%d'), ' ', SEC_TO_TIME((TIME_TO_SEC(NOW()) DIV {$d}) * {$d}))
+             WHERE `name` = ? AND `last_run` = ?", [$name, $crons[$name]]);
+        if ($claimed !== 1) {
+            continue;
+        }
         (CronHandler::getInstance($db))->run($name, (int)$times);
     }
 }

@@ -98,3 +98,25 @@ function wallet_open(int $userid, string $account, int $fee, string $pay_from = 
         "UPDATE `users` SET `{$pay_from}` = `{$pay_from}` - ?, `{$account}` = 0 WHERE `userid` = ? AND `{$pay_from}` >= ? AND `{$account}` = -1",
         [$fee, $userid, $fee]) === 1;
 }
+
+/**
+ * The bars a player spends to act. Each has a column for its maximum beside it.
+ */
+const MCC_BARS = ['energy', 'brave', 'will', 'hp'];
+
+/**
+ * Spend from a bar (energy to train, brave to commit a crime). True if the player had that much and it was taken;
+ * false, with nothing changed, if not. One statement, so it cannot be spent twice by requests arriving together.
+ */
+function bar_spend(int $userid, string $bar, int $amount): bool
+{
+    global $db;
+    if (!in_array($bar, MCC_BARS, true) || $amount < 0) {
+        throw new InvalidArgumentException('Not a bar, or a negative amount.');
+    }
+    if ($amount === 0) {
+        return true;
+    }
+    return $db->exec("UPDATE `users` SET `{$bar}` = `{$bar}` - ? WHERE `userid` = ? AND `{$bar}` >= ?", [$amount, $userid, $amount]) === 1;
+}
+

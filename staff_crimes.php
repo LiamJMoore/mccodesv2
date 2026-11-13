@@ -150,6 +150,14 @@ function new_crime_submit(): void
         exit;
     }
     staff_csrf_stdverify('staff_newcrime', 'staff_crimes.php?action=newcrime');
+    $why = formula_check(stripslashes($_POST['percform']), ['LEVEL', 'CRIMEXP', 'EXP', 'WILL', 'IQ']);
+    if ($why !== null) {
+        echo 'The success formula cannot be used. ' . e($why) . '<br />
+              It may use LEVEL, CRIMEXP, EXP, WILL and IQ with + - * / and brackets, for example ((WILL*0.8)/2.5)+(LEVEL/4).<br />
+              &gt; <a href="staff_crimes.php?action=newcrime">Go back</a>';
+        $h->endpage();
+        exit;
+    }
     if (!empty($_POST['item'])) {
         $qi          =
             $db->query(
@@ -361,6 +369,14 @@ function edit_crime_sub(): void
     }
     staff_csrf_stdverify('staff_editcrime2',
         'staff_crimes.php?action=editcrime');
+    $why = formula_check(stripslashes($_POST['crimePERCFORM']), ['LEVEL', 'CRIMEXP', 'EXP', 'WILL', 'IQ']);
+    if ($why !== null) {
+        echo 'The success formula cannot be used. ' . e($why) . '<br />
+              It may use LEVEL, CRIMEXP, EXP, WILL and IQ with + - * / and brackets, for example ((WILL*0.8)/2.5)+(LEVEL/4).<br />
+              &gt; <a href="staff_crimes.php?action=editcrime">Go back</a>';
+        $h->endpage();
+        exit;
+    }
     if (!empty($_POST['crimeSUCCESSITEM'])) {
         $qi          =
             $db->query(

@@ -14,6 +14,7 @@ require 'engine/version.php';
 require 'engine/helpers.php';
 require 'engine/Economy.php';
 require 'engine/Items.php';
+require 'engine/Formula.php';
 require 'engine/Schema.php';
 require 'engine/mods/Daily.php';
 $set = [];
@@ -23,6 +24,7 @@ $db = new database();
 $db->configure($_CONFIG['hostname'], $_CONFIG['username'], $_CONFIG['password'], $_CONFIG['database']);
 $db->connect();
 
+schema_upgrade();          // a game straight from the installer has not loaded a page yet
 $failed = 0;
 function check(bool $ok, string $what, mixed $detail = ''): void
 {
@@ -87,6 +89,25 @@ foreach ([fn () => wallet_take(2, 'userpass', 1), fn () => wallet_take(2, 'money
     }
 }
 check($threw === 3, 'the money functions refuse a column that is not a balance, a negative amount, and a move to the same balance');
+
+// bars
+$db->exec('UPDATE `users` SET `energy` = 10, `brave` = 5 WHERE `userid` = 2');
+check(bar_spend(2, 'energy', 10) && !bar_spend(2, 'energy', 1) && bar_spend(2, 'brave', 0) && !bar_spend(2, 'brave', 6) && (int)$db->value('SELECT `brave` FROM `users` WHERE `userid` = 2') === 5,
+    'bar_spend() spends energy or brave that is there and refuses what is not');
+
+$db->exec('UPDATE `users` SET `energy` = 12, `brave` = 5 WHERE `userid` = 2');
+
+// formulas
+$v = ['LEVEL' => 8, 'WILL' => 100, 'CRIMEXP' => 40, 'EXP' => 3, 'IQ' => 20];
+check(abs(formula_value('((WILL*0.8)/2.5)+(LEVEL/4)', $v) - 34.0) < 1e-9 && formula_value('2+3*4') === 14.0 && formula_value('(2+3)*4') === 20.0 && formula_value('-2**2') === -4.0
+    && formula_value('2**3**2') === 512.0 && formula_value('10%4') === 2.0 && formula_value('min(95, level*20)', $v) === 95.0 && formula_value('round(7/2)') === 4.0
+    && formula_value('1/0') === 0.0 && formula_value('1.5e2') === 150.0 && formula_value('CRIMEXP+EXP', $v) === 43.0,
+    'formula_value() does arithmetic in the usual order, with brackets, powers, named values and a few functions');
+$refused = 0;
+foreach (['system("id")', 'phpinfo()', '$x=1', '1;2', '`id`', 'LEVEL.WILL', 'exec(1)', '2+', '(2', 'NOPE*2', '', 'pow(2)', "1+'a'", str_repeat('(', 80) . '1' . str_repeat(')', 80)] as $bad) {
+    $refused += formula_check($bad, array_keys($v)) !== null ? 1 : 0;
+}
+check($refused === 14 && formula_check('LEVEL*2+WILL', array_keys($v)) === null, 'anything that is not arithmetic is refused: code, unknown names, unfinished sums', $refused);
 
 // the database upgrades itself
 check(schema_latest() >= 2 && (int)$db->value("SELECT `conf_value` FROM `settings` WHERE `conf_name` = 'engine_schema'") === schema_latest() && schema_upgrade() === [],

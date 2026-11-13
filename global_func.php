@@ -741,9 +741,23 @@ function check_level(): void
                     * ($ir['level'] + 1) * 2.2);
     if ($ir['exp'] >= $ir['exp_needed'])
     {
-        $expu = $ir['exp'] - $ir['exp_needed'];
+        // Engine v3: the level goes up only if the player is still on the level this request read, and the
+        // experience is taken off rather than overwritten. In v2 several page loads arriving together each
+        // levelled the player up, and each gave the extra energy, brave and health.
+        $levelled = $db->exec(
+                'UPDATE `users`
+                 SET `level` = `level` + 1, `exp` = `exp` - ?,
+                 `energy` = `energy` + 2, `brave` = `brave` + 2,
+                 `maxenergy` = `maxenergy` + 2, `maxbrave` = `maxbrave` + 2,
+                 `hp` = `hp` + 50, `maxhp` = `maxhp` + 50
+                 WHERE `userid` = ? AND `level` = ? AND `exp` >= ?',
+                [$ir['exp_needed'], $userid, $ir['level'], $ir['exp_needed']]);
+        if ($levelled !== 1)
+        {
+            return;
+        }
+        $ir['exp'] -= $ir['exp_needed'];
         $ir['level'] += 1;
-        $ir['exp'] = $expu;
         $ir['energy'] += 2;
         $ir['brave'] += 2;
         $ir['maxenergy'] += 2;
@@ -753,13 +767,6 @@ function check_level(): void
         $ir['exp_needed'] =
                 (int) (($ir['level'] + 1) * ($ir['level'] + 1)
                         * ($ir['level'] + 1) * 2.2);
-        $db->query(
-                "UPDATE `users`
-                 SET `level` = `level` + 1, exp = {$expu},
-                 `energy` = `energy` + 2, `brave` = `brave` + 2,
-                 `maxenergy` = `maxenergy` + 2, `maxbrave` = `maxbrave` + 2,
-                 `hp` = `hp` + 50, `maxhp` = `maxhp` + 50
-                 WHERE `userid` = {$userid}");
     }
 }
 

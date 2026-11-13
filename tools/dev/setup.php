@@ -88,6 +88,11 @@ if ((int)$my->query('SELECT COUNT(*) FROM `items`')->fetch_row()[0] === 0) {
         (4, 1, 'Rare Trophy', 'Cannot be bought in a shop.', 0, 5000, 0, 0, '', 0, '', 0, '', 0, 0)");
     $my->query("INSERT INTO `shops` (`shopID`, `shopLOCATION`, `shopNAME`, `shopDESCRIPTION`) VALUES (1, 1, 'Corner Shop', 'Everything a newcomer needs.'), (2, 2, 'Far Shop', 'In another city.')");
     $my->query("INSERT INTO `shopitems` (`sitemID`, `sitemSHOP`, `sitemITEMID`) VALUES (1, 1, 1), (2, 1, 2), (3, 1, 3), (4, 2, 1), (5, 1, 4)");
+    $my->query("INSERT INTO `crimegroups` (`cgID`, `cgNAME`, `cgORDER`) VALUES (1, 'Petty crime', 1)");
+    $my->query("INSERT INTO `crimes` (`crimeID`, `crimeNAME`, `crimeBRAVE`, `crimePERCFORM`, `crimeSUCCESSMUNY`, `crimeSUCCESSCRYS`, `crimeSUCCESSITEM`, `crimeGROUP`, `crimeITEXT`, `crimeSTEXT`, `crimeFTEXT`, `crimeJTEXT`, `crimeJAILTIME`, `crimeJREASON`, `crimeXP`) VALUES
+        (1, 'Search the sofa', 1, '100+(LEVEL*0)', 80, 1, 0, 1, 'You lift the cushions. ', 'You find {money} dollars.', 'Nothing but fluff.', 'The owner calls the police.', 5, 'Sofa theft', 2),
+        (2, 'Pick a pocket', 2, '((WILL*0.8)/2.5)+(LEVEL/4)', 200, 0, 0, 1, 'You pick your mark. ', 'You lift a wallet with {money} dollars in it.', 'Empty pockets.', 'Caught red-handed.', 10, 'Pickpocketing', 4),
+        (3, 'Left over from v2', 1, 'system(\\'id\\')', 10, 0, 0, 1, 'x', 'x', 'x', 'x', 1, 'x', 1)");
 }
 echo "Installed a fresh game in {$o['db']}: admin (password adminpass1) and {$players} players (player1 / playerpass1, ...).\n";
 echo "config.php written. Cron code: {$code}\n";
