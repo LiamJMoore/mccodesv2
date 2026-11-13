@@ -92,6 +92,17 @@ const MCC_SCHEMA_STEPS = [
               `window_calls` INT NOT NULL DEFAULT 0,
               UNIQUE KEY `by_key` (`key_hash`)
           ) ENGINE=InnoDB"],
+    // 7: one row of game totals a day, for the staff dashboard's trends
+    7 => ["CREATE TABLE IF NOT EXISTS `v3_snapshots` (
+              `day` DATE NOT NULL PRIMARY KEY,
+              `players` INT NOT NULL DEFAULT 0,
+              `active` INT NOT NULL DEFAULT 0,
+              `signups` INT NOT NULL DEFAULT 0,
+              `money` BIGINT NOT NULL DEFAULT 0,
+              `crystals` BIGINT NOT NULL DEFAULT 0
+          ) ENGINE=InnoDB",
+          "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_snapshot_day', '', 'string' FROM DUAL
+           WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_snapshot_day')"],
 ];
 
 function schema_latest(): int

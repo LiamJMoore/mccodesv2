@@ -16,6 +16,7 @@ if (!defined('JDSF45TJI'))
 global $db, $c, $ir, $set;
 echo "<a href='index.php'>Back To Game</a><hr />
 <b>General</b><br />
+<a href='staff_dashboard.php'>Dashboard</a><br />
 <a href='staff.php'>Index</a><br />";
 if (check_access('administrator')) {
     echo "

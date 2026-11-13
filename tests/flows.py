@@ -851,6 +851,33 @@ def api(srv):
     sql("UPDATE users SET new_events = 0, new_mail = 0")
 
 
+def dashboard(srv):
+    print("Staff dashboard")
+    sql("DELETE FROM v3_snapshots")
+    sql("UPDATE settings SET conf_value = '' WHERE conf_name = 'engine_snapshot_day'")
+    out = many(srv, "player1", "playerpass1", 8, "/explore.php")
+    check(one("SELECT COUNT(*) FROM v3_snapshots") == "1" and one("SELECT conf_value = CURDATE() FROM settings WHERE conf_name = 'engine_snapshot_day'") == "1",
+          "the first page loads of the day, arriving together, record one snapshot of the game")
+    staff = Session(srv.base)
+    staff.login("admin", "adminpass1")
+    _, _, body = staff.get("/staff_dashboard.php")
+    check(all(x in body for x in ("Dashboard", "Books balance", "Worth a look", "Timed job", "Richest players")) and "mccodes.com" not in body, "an administrator sees the whole dashboard")
+    _, _, body = staff.get("/staff.php")
+    check("update_check" not in body and "<iframe" not in body, "the staff index no longer loads a page from another website")
+    player = Session(srv.base)
+    player.login("player1", "playerpass1")
+    _, _, body = player.get("/staff_dashboard.php")
+    check("Books balance" not in body and "Richest players" not in body, "a player cannot open the dashboard")
+    sql("DELETE FROM logs_cron_runtimes")
+    staff.get("/staff.php?action=fire-cron", {"submit": "1", "cron": "minute-5"})
+    check(one("SELECT COUNT(*) FROM logs_cron_runtimes") == "0", "firing a cron without the form's token does nothing")
+    (_, _, body), _ = staff.form("/staff.php?action=fire-cron", {"submit": "1", "cron": "minute-5"}, token_from="/staff.php?action=fire-cron")
+    check("cron fired" in body and one("SELECT COUNT(*) FROM logs_cron_runtimes") == "1", "with the token, an administrator can fire a cron")
+    sql("DELETE FROM v3_snapshots")
+    sql("DELETE FROM stafflog")
+    sql("UPDATE users SET brave = 5, energy = 12, will = 100, hp = 100")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -873,6 +900,7 @@ def main():
         crafting(srv)
         gangs(srv)
         api(srv)
+        dashboard(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

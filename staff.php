@@ -33,6 +33,8 @@ function manually_fire_cron(): void
     }
     $_POST['cron'] = array_key_exists('cron', $_POST) && in_array($_POST['cron'], $crons) ? strtolower($_POST['cron']) : null;
     if (array_key_exists('submit', $_POST)) {
+        // engine v3: this form had no anti-forgery token, so any web page an administrator visited could fire a cron
+        staff_csrf_stdverify('staff_firecron', 'staff.php?action=fire-cron');
         if (empty($_POST['cron'])) {
             echo 'Invalid cron name given';
             $h->endpage();
@@ -47,6 +49,7 @@ function manually_fire_cron(): void
     <h3>Manually Fire Cron</h3>
     There is no confirmation. Be certain you have selected the correct cron before submitting the form.<br>
     <form action="staff.php?action=fire-cron" method="post">
+        ' . request_csrf_html('staff_firecron') . '
         <label for="cron">Select Cron</label>
         <select name="cron" id="cron">
             <option value="0" disabled selected>-- SELECT --</option>
@@ -318,12 +321,8 @@ function index(): void
                     <td>$version (Build: $versionno)</td>
                 </tr>
                 <tr>
-                    <th>Update Status:</th>
-                    <td>
-                        <iframe
-                            src='https://www.mccodes.com/update_check.php?version={$versionno}'
-                            width='250' height='30'></iframe>
-                    </td>
+                    <th>Engine:</th>
+                    <td>v" . MCC_ENGINE_VERSION . " &middot; <a href='staff_dashboard.php'>Dashboard</a></td>
                 </tr>
         </table>
         <hr />

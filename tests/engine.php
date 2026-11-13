@@ -25,6 +25,7 @@ require 'engine/mods/Bounties.php';
 require 'engine/mods/Crafting.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
+require 'engine/mods/Dashboard.php';
 require 'global_func.php';
 $set = [];
 include 'config.php';
@@ -387,6 +388,31 @@ foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0, `new_mail` = 0');
+
+// the staff dashboard
+$db->exec('DELETE FROM `v3_snapshots`');
+$db->exec("UPDATE `settings` SET `conf_value` = '' WHERE `conf_name` = 'engine_snapshot_day'");
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `bankmoney` = -1, `cybermoney` = -1');
+$t = dash_totals();
+check($t['players'] === 4 && $t['money'] === 400 && $t['all_money'] === 400 && $t['crystals'] === 40 && $t['broken'] === 0 && $t['negative_inventory'] === 0, 'the dashboard totals count players and money', $t);
+$db->exec('UPDATE `users` SET `money` = -5 WHERE `userid` = 3');
+check(dash_totals()['broken'] === 1, 'a negative balance is counted as a problem');
+$db->exec('UPDATE `users` SET `money` = 100 WHERE `userid` = 3');
+check(dash_snapshot('2026-07-01') && !dash_snapshot('2026-07-01') && dash_snapshot('2026-07-02') && count(dash_history()) === 2 && (int)dash_history()[0]['money'] === 400 && dash_history()[0]['day'] === '2026-07-01',
+    'one snapshot is written a day, however often it is asked for, and the history comes back oldest first');
+$svg = dash_chart('Money <b>', [['label' => '1 Jul', 'value' => 100], ['label' => '2 Jul', 'value' => 150]], '#8B74FF', '$');
+check(str_contains($svg, '<svg') && str_contains($svg, '+50%') && str_contains($svg, '2 Jul: $150') && !str_contains($svg, 'Money <b>') && str_contains(dash_chart('X', [], '#fff'), 'after two days'),
+    'a trend is drawn as a chart with its change and a tip on each point, and says so when there is not enough history yet');
+check(dash_short(1234567) === '1.23M' && dash_short(950) === '950' && dash_short(45000) === '45K' && dash_short(2.5e9) === '2.5B', 'large figures are shortened');
+$db->exec('DELETE FROM `cashxferlogs`');
+$db->insert('cashxferlogs', ['cxFROM' => 3, 'cxTO' => 2, 'cxAMOUNT' => 5000, 'cxTIME' => time(), 'cxFROMIP' => '10.0.0.1', 'cxTOIP' => '10.0.0.1']);
+$w = dash_watch();
+check(count($w['transfers']) === 1 && (int)$w['transfers'][0]['same_ip'] === 1 && $w['transfers'][0]['fname'] === 'player2' && count($w['richest']) === 3, 'the watchlist flags a transfer between two accounts on one IP address');
+$hl = dash_health();
+check(count($hl['crons']) === 4 && $hl['schema'] === $hl['schema_latest'] && $hl['engine'] === MCC_ENGINE_VERSION, 'the health panel reports the timed jobs and that the schema is up to date');
+$db->exec('DELETE FROM `cashxferlogs`');
+$db->exec('DELETE FROM `v3_snapshots`');
+$db->exec("UPDATE `settings` SET `conf_value` = '' WHERE `conf_name` = 'engine_snapshot_day'");
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

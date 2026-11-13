@@ -236,3 +236,26 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
 .bell-mail::before{background:var(--acc2)}
 .bell-empty{padding:18px 12px;color:var(--mute);text-align:center;font-size:13px}
 .bell-foot{display:flex;justify-content:space-between;padding:9px 12px;font-size:12px;background:rgba(255,255,255,.02)}
+
+/* -- engine v3: staff dashboard ----------------------------------------- */
+.dash-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0;text-align:left}
+.dash-tile{padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.03)}
+.dash-tile small{display:block;color:var(--mute);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.dash-tile b{display:block;font:700 24px/1.25 var(--disp);color:var(--ink);margin-top:4px}
+.dash-tile span{display:block;color:var(--mute);font-size:12px;margin-top:2px}
+.dash-tile.warn{border-color:rgba(251,191,36,.55)}
+.dash-check{margin:6px 0 18px;padding:12px 16px;border-radius:var(--r);text-align:left;border:1px solid rgba(52,211,153,.45);background:rgba(52,211,153,.08)}
+.dash-check.bad{border-color:rgba(244,63,94,.6);background:rgba(244,63,94,.1)}
+.dash-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;text-align:left}
+.dash-chart{margin:0;padding:14px 14px 8px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.02)}
+.dash-chart figcaption{color:var(--mute);font-size:12px;margin-bottom:4px}
+.dash-chart figcaption b{color:var(--ink);font:700 18px var(--disp);margin-left:6px}
+.dash-chart figcaption small{color:var(--mute);margin-left:6px}
+.dash-chart svg{display:block;width:100%;height:auto}
+.dash-ax{fill:#8D99B5;font:11px var(--body)}
+.dash-pt circle{opacity:0;transition:opacity .1s}
+.dash-pt:hover circle,.dash-pt.dash-last circle{opacity:1}
+.dash-nodata{padding:36px 8px;color:var(--mute);text-align:center;font-size:13px}
+.dash-table{margin:12px 0;text-align:left}
+.dash-table summary{cursor:pointer;color:#B9A8FF}
+.dash-flag{color:#FBBF24}
