@@ -45,21 +45,28 @@ if (!$r['jail'])
     $h->endpage();
     exit;
 }
-$mult = $r['level'] * $r['level'];
+// engine v3: the 10 energy is taken first, in one statement that refuses if it is not there
+if (!bar_spend($userid, 'energy', 10))
+{
+    echo 'Sorry, it costs 10 energy to bust someone. Come back later.';
+    $h->endpage();
+    exit;
+}
+$mult = max(1, $r['level'] * $r['level']);
 $chance = min(($ir['crimexp'] / $mult) * 50 + 1, 95);
 if (rand(1, 100) < $chance)
 {
     $gain = $r['level'] * 5;
+    if ($db->exec('UPDATE `users` SET `jail` = 0 WHERE `userid` = ? AND `jail` > 0', [(int) $r['userid']]) !== 1)
+    {
+        echo "By the time you get there, {$r['username']} is already out.<br />
+  	&gt; <a href='jail.php'>Back</a>";
+        $h->endpage();
+        exit;
+    }
+    $db->exec('UPDATE `users` SET `crimexp` = `crimexp` + ? WHERE `userid` = ?', [(int) $gain, $userid]);
     echo "You successfully busted {$r['username']} out of jail.<br />
   	&gt; <a href='jail.php'>Back</a>";
-    $db->query(
-            "UPDATE `users`
-    		 SET `crimexp` = `crimexp` + {$gain}, `energy` = `energy` - 10
-    		 WHERE `userid` = $userid");
-    $db->query(
-            "UPDATE `users`
-    		 SET `jail` = 0
-    		 WHERE `userid` = {$r['userid']}");
     event_add($r['userid'],
         "<a href='viewuser.php?u={$ir['userid']}'>{$ir['username']}</a> busted you out of jail.");
 }
@@ -68,12 +75,7 @@ else
     echo "While trying to bust out your friend, a guard spotted you and dragged you into jail yourself. Unlucky!<br />
   	&gt; <a href='jail.php'>Back</a>";
     $time = min($mult, 100);
-    $jail_reason = $db->escape("Caught trying to bust out {$r['username']}");
-    $db->query(
-            "UPDATE `users`
-             SET `jail` = $time, `jail_reason` = '{$jail_reason}',
-             `energy` = `energy` - 10
-             WHERE `userid` = $userid");
+    $db->exec('UPDATE `users` SET `jail` = ?, `jail_reason` = ? WHERE `userid` = ?', [(int) $time, "Caught trying to bust out {$r['username']}", $userid]);
     event_add($r['userid'],
         "<a href='viewuser.php?u={$ir['userid']}'>{$ir['username']}</a> was caught trying to bust you out of jail.");
 }

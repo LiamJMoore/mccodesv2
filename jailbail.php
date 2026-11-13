@@ -49,16 +49,20 @@ if ($ir['money'] < $cost)
     exit;
 }
 
+// engine v3: the prisoner is released only if still inside, and the bail is taken only if it is there: both or neither
+$bailed = $db->attempt(function () use ($db, $userid, $r, $cost) {
+    return $db->exec('UPDATE `users` SET `jail` = 0 WHERE `userid` = ? AND `jail` > 0', [(int) $r['userid']]) === 1
+        && wallet_take($userid, 'money', (int) $cost);
+});
+if (!$bailed)
+{
+    echo "{$r['username']} is no longer in jail, or you no longer have {$cf}.<br />
+  &gt; <a href='jail.php'>Back</a>";
+    $h->endpage();
+    exit;
+}
 echo "You successfully bailed {$r['username']} out of jail for $cf.<br />
   &gt; <a href='jail.php'>Back</a>";
-$db->query(
-        "UPDATE `users`
-		 SET `money` = `money` - {$cost}
-		 WHERE `userid` = $userid");
-$db->query(
-        "UPDATE `users`
-		 SET `jail` = 0
-		 WHERE `userid` = {$r['userid']}");
 event_add($r['userid'],
     "<a href='viewuser.php?u={$ir['userid']}'>{$ir['username']}</a> bailed you out of jail.");
 $h->endpage();

@@ -78,15 +78,19 @@ else
         }
         else
         {
-            $db->query(
-                    "UPDATE `users`
-                     SET `money` = `money` - $cost_of_travel,
-                     `location` = {$_GET['to']}
-                     WHERE `userid` = $userid");
             $cityName = $db->fetch_single($q);
-            echo 'Congratulations, you paid '
-                    . money_formatter($cost_of_travel) . ' and travelled to '
-                    . $cityName . ' on the monorail!';
+            // engine v3: the ticket is paid for and used in one statement, which refuses if the fare is not there
+            if ($db->exec('UPDATE `users` SET `money` = `money` - ?, `location` = ? WHERE `userid` = ? AND `money` >= ? AND `location` <> ?',
+                    [$cost_of_travel, $_GET['to'], $userid, $cost_of_travel, $_GET['to']]) === 1)
+            {
+                echo 'Congratulations, you paid '
+                        . money_formatter($cost_of_travel) . ' and travelled to '
+                        . $cityName . ' on the monorail!';
+            }
+            else
+            {
+                echo 'You don\'t have enough money.';
+            }
         }
         $db->free_result($q);
     }

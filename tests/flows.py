@@ -608,6 +608,98 @@ def bounties(srv):
     sql("UPDATE userstats SET strength = 10, agility = 10, guard = 10")
 
 
+def many(srv, user, password, n, path, data=None, token_path=None, token_re=None):
+    """n logins sending the same request at once; returns the page bodies"""
+    def go(sess, prepare=False, prepared=None):
+        if prepare:
+            if token_path is None:
+                return None
+            page = sess.get(token_path)[2]
+            return re.search(token_re or r"name='verf' value='([^']+)'", page).group(1)
+        d = None if data is None and prepared is None else dict(data or {}, **({"verf": prepared} if prepared else {}))
+        return sess.get(path() if callable(path) else path, d)[2]
+    return at_once(srv.base, user, password, n, go)
+
+
+def town(srv):
+    print("Casino, housing, jail, travel")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    # slots and roulette: one stake, many plays at once
+    for page, extra, stake, ends in (("slotsmachine.php", {}, 250, (0, 750, 6500)), ("roulette.php", {"number": "7"}, 150, (0, 5550))):
+        sql(f"UPDATE users SET money = {stake}, level = 1 WHERE userid = 2")
+        n = iter(range(100, 999))
+        out = many(srv, "player1", "playerpass1", 10, lambda: f"/{page}?tresde={next(n)}", dict({"bet": str(stake)}, **extra))
+        played = sum("You bet" in b for b in out)
+        refused = sum("more than you have" in b for b in out)
+        m = balances(2)["money"]
+        check(played == 1 and refused == 9 and m in ends, f"{page}: ten plays at once on one stake of ${stake}: one play, nine refused", (played, refused, m))
+    # lucky boxes
+    sql("UPDATE users SET money = 1000, boxes_opened = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 10, "/lucky.php?open=1")
+    opened = one("SELECT boxes_opened FROM users WHERE userid = 2")
+    check(int(opened) >= 1 and balances(2)["money"] >= 0, "lucky boxes: ten opened at once with money for one: the pocket never goes below zero (a box can pay for the next)", (opened, balances(2)["money"]))
+    sql("UPDATE users SET money = 100000, boxes_opened = 0 WHERE userid = 2")
+    many(srv, "player1", "playerpass1", 10, "/lucky.php?open=1")
+    check(one("SELECT boxes_opened FROM users WHERE userid = 2") == "5", "lucky boxes: ten opened at once with plenty of money: the daily limit of five holds")
+    # housing
+    sql("UPDATE users SET money = 20000, maxwill = 100, will = 100 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 10, "/estate.php?property=2")
+    b = sql("SELECT money, maxwill FROM users WHERE userid = 2")[0]
+    check(sum("Congrats" in x for x in out) == 1 and b == ["0", "150"], "estate agent: ten purchases of the same house at once: bought and paid for once", b)
+    out = many(srv, "player1", "playerpass1", 10, "/estate.php?sellhouse")
+    b = sql("SELECT money, maxwill FROM users WHERE userid = 2")[0]
+    check(sum("You sold your" in x for x in out) == 1 and b == ["20000", "100"], "estate agent: ten sales of the same house at once: sold once (v2 paid ten times)", b)
+    # bail: player3 bails player2 out
+    sql("UPDATE users SET jail = 30, level = 1 WHERE userid = 3")
+    sql("UPDATE users SET money = 5000, jail = 0 WHERE userid = 4")
+    out = many(srv, "player3", "playerpass3", 6, "/jailbail.php?ID=3")
+    check(sum("You successfully bailed" in x for x in out) == 1 and balances(4)["money"] == 3000 and one("SELECT jail FROM users WHERE userid = 3") == "0",
+          "bail: six logins bailing the same prisoner at once: one bail is paid", balances(4)["money"])
+    # bust
+    sql("UPDATE users SET jail = 30 WHERE userid = 3")
+    sql("UPDATE users SET energy = 10, crimexp = 1000000, jail = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/jailbust.php?ID=3")
+    e = sql("SELECT energy, crimexp FROM users WHERE userid = 2")[0]
+    check(sum("You successfully busted" in x for x in out) <= 1 and e[0] == "0" and int(float(e[1])) <= 1000005,
+          "bust: six attempts at once on 10 energy: one attempt, and at most one reward", (e, [x[-120:] for x in out][:2]))
+    # travel
+    sql("UPDATE users SET money = 1000, location = 1, jail = 0, level = 1 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/monorail.php?to=2")
+    b = sql("SELECT money, location FROM users WHERE userid = 2")[0]
+    check(sum("Congratulations" in x for x in out) == 1 and b == ["0", "2"], "monorail: six journeys at once on one fare: one ticket", b)
+    sql("UPDATE users SET money = 5000 WHERE userid = 2")
+    _, _, body = s.get("/monorail.php?to=3")
+    check("cannot go there" in body, "monorail: a city above your level is refused")
+    sql("UPDATE users SET money = 100, crystals = 10, location = 1, jail = 0, energy = 12, crimexp = 0, maxwill = 100, will = 100, boxes_opened = 0, level = 1, exp = 0")
+
+
+def items(srv):
+    print("Using and sending items")
+    sql("DELETE FROM inventory")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (1, 2, 1)")
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 2")
+    sql("UPDATE users SET energy = 0, maxenergy = 12 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 10, f"/itemuse.php?ID={inv_id}")
+    e = one("SELECT energy FROM users WHERE userid = 2")
+    check(sum("used successfully" in x for x in out) == 1 and e == "5" and one("SELECT COUNT(*) FROM inventory WHERE inv_userid = 2") == "0",
+          "one sandwich eaten from ten logins at once: eaten once, energy rises once (v2: ten times)", (sum("used successfully" in x for x in out), e))
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (1, 2, 3)")
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 2")
+    sql("UPDATE users SET energy = 10 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    s.get(f"/itemuse.php?ID={inv_id}")
+    check(one("SELECT energy FROM users WHERE userid = 2") == "12", "an item cannot fill a bar past its maximum")
+    out = many(srv, "player1", "playerpass1", 10, f"/itemsend.php?ID={inv_id}", {"user": "3", "qty": "2"}, token_path=f"/itemsend.php?ID={inv_id}")
+    mine, theirs = inv(2, 1), inv(3, 1)
+    check(sum("You sent 2" in x for x in out) == 1 and mine == 0 and theirs == 2, "two sandwiches sent from ten logins at once: they arrive once (v2: duplicated)", (mine, theirs))
+    sql("DELETE FROM inventory")
+    sql("DELETE FROM itemxferlogs")
+    sql("DELETE FROM events")
+    sql("UPDATE users SET energy = 12, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -625,6 +717,8 @@ def main():
         missions(srv)
         fights(srv)
         bounties(srv)
+        town(srv)
+        items(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

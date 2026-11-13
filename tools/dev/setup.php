@@ -82,12 +82,14 @@ foreach (['game_name' => 'MCCodes v3 dev', 'game_owner' => 'Dev', 'paypal' => 'd
 if ((int)$my->query('SELECT COUNT(*) FROM `items`')->fetch_row()[0] === 0) {
     $my->query("INSERT INTO `itemtypes` (`itmtypeid`, `itmtypename`) VALUES (1, 'Food'), (2, 'Weapon'), (3, 'Armour')");
     $my->query("INSERT INTO `items` (`itmid`, `itmtype`, `itmname`, `itmdesc`, `itmbuyprice`, `itmsellprice`, `itmbuyable`, `effect1_on`, `effect1`, `effect2_on`, `effect2`, `effect3_on`, `effect3`, `weapon`, `armor`) VALUES
-        (1, 1, 'Sandwich', 'Restores a little energy.', 100, 50, 1, 0, '', 0, '', 0, '', 0, 0),
+        (1, 1, 'Sandwich', 'Restores a little energy.', 100, 50, 1, 1, '" . $my->real_escape_string(serialize(['stat' => 'energy', 'dir' => 'pos', 'inc_type' => 'figure', 'inc_amount' => 5])) . "', 0, '', 0, '', 0, 0),
         (2, 2, 'Baseball Bat', 'A first weapon.', 1000, 500, 1, 0, '', 0, '', 0, '', 10, 0),
         (3, 3, 'Leather Jacket', 'A first piece of armour.', 1500, 750, 1, 0, '', 0, '', 0, '', 0, 10),
         (4, 1, 'Rare Trophy', 'Cannot be bought in a shop.', 0, 5000, 0, 0, '', 0, '', 0, '', 0, 0)");
     $my->query("INSERT INTO `shops` (`shopID`, `shopLOCATION`, `shopNAME`, `shopDESCRIPTION`) VALUES (1, 1, 'Corner Shop', 'Everything a newcomer needs.'), (2, 2, 'Far Shop', 'In another city.')");
     $my->query("INSERT INTO `shopitems` (`sitemID`, `sitemSHOP`, `sitemITEMID`) VALUES (1, 1, 1), (2, 1, 2), (3, 1, 3), (4, 2, 1), (5, 1, 4)");
+    $my->query("INSERT INTO `houses` (`hID`, `hNAME`, `hPRICE`, `hWILL`) VALUES (2, 'Flat', 20000, 150), (3, 'Town House', 100000, 250)");
+    $my->query("INSERT INTO `cities` (`cityid`, `cityname`, `citydesc`, `cityminlevel`) VALUES (2, 'Far City', 'A long way off.', 1), (3, 'High City', 'For the experienced.', 50)");
     $my->query("INSERT INTO `crimegroups` (`cgID`, `cgNAME`, `cgORDER`) VALUES (1, 'Petty crime', 1)");
     $my->query("INSERT INTO `crimes` (`crimeID`, `crimeNAME`, `crimeBRAVE`, `crimePERCFORM`, `crimeSUCCESSMUNY`, `crimeSUCCESSCRYS`, `crimeSUCCESSITEM`, `crimeGROUP`, `crimeITEXT`, `crimeSTEXT`, `crimeFTEXT`, `crimeJTEXT`, `crimeJAILTIME`, `crimeJREASON`, `crimeXP`) VALUES
         (1, 'Search the sofa', 1, '100+(LEVEL*0)', 80, 1, 0, 1, 'You lift the cushions. ', 'You find {money} dollars.', 'Nothing but fluff.', 'The owner calls the police.', 5, 'Sofa theft', 2),

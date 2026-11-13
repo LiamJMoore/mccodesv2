@@ -55,6 +55,13 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet']))
                 "The Numbers are only 0 - 36.<br />
 		<a href='roulette.php?tresde=$tresder'>&gt; Back</a>");
     }
+    // engine v3: the stake is taken before the wheel spins, in one statement that refuses if it is not there
+    if (!wallet_take($userid, 'money', $_POST['bet']))
+    {
+        die(
+                "You are trying to bet more than you have.<br />
+		<a href='roulette.php?tresde=$tresder'>&gt; Back</a>");
+    }
     $slot = [];
     $slot[1] = rand(0, 36);
     echo 'You place ' . money_formatter($_POST['bet'])
@@ -75,10 +82,10 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet']))
         $gain = -$_POST['bet'];
         echo 'and lost it.';
     }
-    $db->query(
-            "UPDATE `users`
-    		 SET `money` = `money` + ({$gain})
-    		 WHERE `userid` = $userid");
+    if ($won > 0)
+    {
+        wallet_give($userid, 'money', $won);
+    }
     $tresder = rand(100, 999);
     echo "<br />
 	<form action='roulette.php?tresde={$tresder}' method='post'>
