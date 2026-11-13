@@ -414,5 +414,39 @@ $db->exec('DELETE FROM `cashxferlogs`');
 $db->exec('DELETE FROM `v3_snapshots`');
 $db->exec("UPDATE `settings` SET `conf_value` = '' WHERE `conf_name` = 'engine_snapshot_day'");
 
+// links, addresses and forum text
+check(safe_url('https://example.com/a?b=1&c=2') === 'https://example.com/a?b=1&amp;c=2' && safe_url('http://example.com') === 'http://example.com' && safe_url('javascript:alert(1)') === ''
+    && safe_url('jav&#x61;script:alert(1)') === '' && safe_url('jav&amp;#x61;script:alert(1)') === '' && safe_url("java\tscript:alert(1)") === '' && safe_url('data:text/html,x') === ''
+    && safe_url("https://example.com/' onmouseover='x") === '' && safe_url('//example.com') === '' && safe_url('') === '',
+    'safe_url() passes a plain web address and refuses script, data and disguised addresses');
+$_SESSION = [];
+$_GET = [];
+$_POST = [];
+$tk = link_token();
+$ok0 = link_token_ok();
+$_GET['tk'] = 'wrong';
+$ok1 = link_token_ok();
+$_GET['tk'] = $tk;
+check(strlen($tk) === 32 && link_token() === $tk && !$ok0 && !$ok1 && link_token_ok(), 'a link token lasts for the login, and only the right one is accepted');
+if (!function_exists('userBox')) {
+    function userBox($x)
+    {
+        return is_array($x) ? $x[1] : $x;
+    }
+}
+function check_image($src): string
+{
+    return 'IMG';
+}
+require 'class/class_bbcode.php';
+$bb = bbcode::getInstance();
+$out = $bb->bbcode_parse("[url=jav&#x61;script:alert(1)]a[/url] [url=javascript:alert(1)]b[/url] [url=data:text/html,x]c[/url] <script>alert(1)</script> <img src=x onerror=alert(1)>"
+    . ' [style=position:fixed;top:0;left:0;width:100%;height:100%;background:url(//evil/x)]d[/style] [color=red onmouseenter=alert(1)]e[/color]');
+check(!str_contains($out, 'href') && !str_contains($out, '<script') && !str_contains($out, '<img') && !str_contains($out, 'position') && !str_contains($out, 'url(') && !str_contains($out, 'onmouseenter')
+    && !str_contains(strtolower(html_entity_decode($out)), 'javascript:'), 'forum text cannot carry a script link, raw HTML, free-form CSS or an event handler', $out);
+$out = $bb->bbcode_parse('[b]bold[/b] [url=https://example.com/x]link[/url] [style=color:red;font-weight:bold]s[/style] [color=blue]c[/color] [size=4]z[/size]');
+check($out === "<b>bold</b> <a href='https://example.com/x' rel='nofollow noopener noreferrer' target='_blank'>link</a> <span style='color:red;font-weight:bold'>s</span> <font color='blue'>c</font> <font size='4'>z</font>",
+    'ordinary formatting, links and colours still work', $out);
+
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

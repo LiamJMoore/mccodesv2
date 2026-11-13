@@ -73,6 +73,12 @@ Other fixes made on the way:
 - The staff "fire cron" form had no anti-forgery token.
 - The staff index loaded a page from mccodes.com on every visit. It no longer does.
 - An item can only change a listed set of player columns, and adds to them rather than overwriting.
+- Forums: a link written as `[url=jav&#x61;script:...]` ran script when clicked, and `[style=...]` accepted any CSS.
+  Links must now be plain http or https addresses and styles may set only colour, weight and size.
+- Forums: any player could move a topic (the permission test was written the wrong way round), and moderator links
+  (lock, pin, move, delete) worked from anywhere. They now need the moderator role and a link token (`link_token()`).
+- Forums: every image in a post was fetched by the game's own server each time the post was shown. It no longer is.
+- Forums: an address that erased every forum, topic and post (`?empty=1&code=kill`) has been removed.
 
 ## The database upgrades itself
 
@@ -107,9 +113,8 @@ Rewards, targets, fees and limits are constants at the top of each mod file. Cha
 
 ## Still on v2 code
 
-These run on the v3 start-up path but their own code is unchanged: jobs and education, mail and forums, equipping,
-the newspaper, polls, donator pages, and most staff pages. Messaging and forums are next, because they print one
-player's text to another.
+These run on the v3 start-up path but their own code is unchanged: jobs and education, equipping,
+mail, the newspaper, polls, donator pages, and most staff pages.
 
 ## Running it locally
 

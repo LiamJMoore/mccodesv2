@@ -878,6 +878,50 @@ def dashboard(srv):
     sql("UPDATE users SET brave = 5, energy = 12, will = 100, hp = 100")
 
 
+def forums(srv):
+    print("Forums")
+    for t in ("forum_posts", "forum_topics", "forum_forums"):
+        sql(f"DELETE FROM {t}")
+    sql("INSERT INTO forum_forums (ff_id, ff_name, ff_desc, ff_lp_poster_name, ff_lp_t_name, ff_auth) VALUES (5, 'General', 'Talk', 'N/A', 'N/A', 'public'), (6, 'Other', 'Elsewhere', 'N/A', 'N/A', 'public')")
+    player = Session(srv.base)
+    player.login("player1", "playerpass1")
+    nasty = "[url=jav&#x61;script:alert(1)]click[/url] <script>alert(2)</script> [style=position:fixed;top:0;left:0;width:100%;height:100%]cover[/style] [b]fine[/b]"
+    (_, _, body), _ = player.form("/forums.php?act=newtopic&forum=5", {"ft_name": "Hello", "ft_desc": "A topic", "fp_text": nasty}, token_from="/forums.php?act=newtopicform&forum=5")
+    tid = one("SELECT COALESCE(MAX(ft_id), 0) FROM forum_topics")
+    check(tid != "0", "a player can start a topic", body[-300:])
+    _, _, body = player.get(f"/forums.php?viewtopic={tid}")
+    check("<b>fine</b>" in body and "<a>click</a>" in body and "href='jav" not in body and "<script>alert(2)" not in body and "position:fixed" not in body and "<span>cover</span>" in body,
+          "a post with a disguised script link, a script tag and a full-page overlay is shown with all three disarmed")
+    check("act=deletopic" not in body and "act=lock" not in body, "a player is not offered the moderator links")
+    # v2: any player could move a topic (the permission test was written the wrong way round)
+    player.get(f"/forums.php?act=move&topic={tid}", {"forum": "6"})
+    player.get(f"/forums.php?act=lock&topic={tid}")
+    player.get(f"/forums.php?act=deletopic&topic={tid}")
+    t = sql(f"SELECT ft_forum_id, ft_locked FROM forum_topics WHERE ft_id = {tid}")
+    check(t == [["5", "0"]], "a player cannot move, lock or delete a topic", t)
+    mod = Session(srv.base)
+    mod.login("admin", "adminpass1")
+    mod.get(f"/forums.php?act=lock&topic={tid}")
+    mod.get(f"/forums.php?act=deletopic&topic={tid}")
+    mod.get(f"/forums.php?act=move&topic={tid}", {"forum": "6"})
+    t = sql(f"SELECT ft_forum_id, ft_locked FROM forum_topics WHERE ft_id = {tid}")
+    check(t == [["5", "0"]], "a moderator's browser following a bare link (as another site could make it) changes nothing", t)
+    _, _, body = mod.get(f"/forums.php?viewtopic={tid}")
+    tk = re.search(r"act=lock&amp;topic=\d+&amp;tk=([0-9a-f]{32})", body)
+    check(tk is not None, "the moderator's own page carries the links with a token")
+    tk = tk.group(1)
+    mod.get(f"/forums.php?act=lock&topic={tid}&tk={tk}")
+    mod.get(f"/forums.php?act=move&topic={tid}&tk={tk}", {"forum": "6"})
+    t = sql(f"SELECT ft_forum_id, ft_locked FROM forum_topics WHERE ft_id = {tid}")
+    check(t == [["6", "1"]], "with the token the moderator can lock and move the topic", t)
+    mod.get(f"/forums.php?empty=1&code=kill")
+    check(one("SELECT COUNT(*) FROM forum_topics") == "1", "the old address that erased every forum does nothing")
+    mod.get(f"/forums.php?act=deletopic&topic={tid}&tk={tk}")
+    check(one("SELECT COUNT(*) FROM forum_topics") == "0", "with the token the moderator can delete the topic")
+    for t in ("forum_posts", "forum_topics", "forum_forums", "stafflog"):
+        sql(f"DELETE FROM {t}")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -901,6 +945,7 @@ def main():
         gangs(srv)
         api(srv)
         dashboard(srv)
+        forums(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

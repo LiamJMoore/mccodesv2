@@ -102,7 +102,39 @@ class bbcode
                     'onresize', 'onscroll'], '', $html);
         $html =
             str_replace(['"', "'"], ['&quot;', '&#39;'], $html);
-        return $this->engine->parse_bbcode($this->quote_corrector($html));
+        return $this->make_safe((string)$this->engine->parse_bbcode($this->quote_corrector($html)));
+    }
+
+    /**
+     * Engine v3. The tags above put what a player typed straight into href and style attributes, guarded only by a
+     * list of words to remove, which is easy to get round: [url=jav&#x61;script:...] became a working script link,
+     * and [style=...] accepted any CSS at all (a full-page overlay, a tracking image). This goes over the finished
+     * HTML: a link must be a plain http or https address, and a style may only set a short list of harmless things.
+     */
+    private function make_safe(string $html): string
+    {
+        $html = (string)preg_replace_callback('/<a href=\'([^\']*)\'>/i', static function (array $m): string {
+            $raw = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (stripos(trim($raw), 'mailto:') === 0 && preg_match('/^mailto:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+$/', trim($raw))) {
+                return "<a href='" . htmlspecialchars(trim($raw), ENT_QUOTES, 'ISO-8859-1') . "'>";
+            }
+            $url = function_exists('safe_url') ? safe_url(preg_match('~^[a-z][a-z0-9+.-]*:~i', trim($raw)) ? $m[1] : 'https://' . $m[1]) : '';
+            return $url === '' ? '<a>' : "<a href='{$url}' rel='nofollow noopener noreferrer' target='_blank'>";
+        }, $html);
+        $html = (string)preg_replace_callback('/<span style=\'([^\']*)\'>/i', static function (array $m): string {
+            $keep = [];
+            foreach (explode(';', html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')) as $rule) {
+                if (preg_match('/^\s*(color|background-color|font-weight|font-style|text-decoration|font-size|text-align)\s*:\s*([#A-Za-z0-9 .%-]{1,40})\s*$/', $rule, $r)
+                    && !preg_match('/^font-size$/i', $r[1]) || (isset($r[1]) && strtolower($r[1]) === 'font-size' && preg_match('/^\s*(\d{1,2}(px|pt)|\d{2,3}%|small|medium|large|x-large)\s*$/', $r[2]))) {
+                    $keep[] = strtolower($r[1]) . ':' . trim($r[2]);
+                }
+            }
+            return $keep ? "<span style='" . implode(';', $keep) . "'>" : '<span>';
+        }, $html);
+        // [font], [size] and [color] make <font ...='value'>: letters, digits, spaces, # and commas are all those need
+        return (string)preg_replace_callback('/<font (face|size|color)=\'([^\']*)\'>/i', static function (array $m): string {
+            return preg_match('/^[#A-Za-z0-9 ,+-]{1,40}$/', $m[2]) ? $m[0] : '<font>';
+        }, $html);
     }
 
     /**

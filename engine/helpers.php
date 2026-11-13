@@ -45,3 +45,42 @@ function e(string|int|float|null $text): string
 {
     return htmlentities((string)$text, ENT_QUOTES, 'ISO-8859-1');
 }
+
+/**
+ * A token for links that change something (delete this, lock that). A form uses request_csrf_html(); a plain link
+ * cannot carry a single-use token, so it carries this one, which lasts for the login. Without it, a link such as
+ * "delete topic 5" works from anywhere: another site, or an image in a forum post, could make a moderator's browser
+ * follow it.
+ *
+ *     echo "<a href='forums.php?act=lock&amp;topic=5&amp;tk=" . link_token() . "'>Lock</a>";
+ *     if (!link_token_ok()) { ...refuse... }
+ */
+function link_token(): string
+{
+    if (empty($_SESSION['mcc_link_token'])) {
+        $_SESSION['mcc_link_token'] = bin2hex(random_bytes(16));
+    }
+    return $_SESSION['mcc_link_token'];
+}
+
+function link_token_ok(): bool
+{
+    $given = (string)($_GET['tk'] ?? $_POST['tk'] ?? '');
+    return $given !== '' && !empty($_SESSION['mcc_link_token']) && hash_equals($_SESSION['mcc_link_token'], $given);
+}
+
+/**
+ * A web address a player typed, made safe to use as a link or an image: http or https only, or '' if it is anything
+ * else (javascript:, data:, a scheme hidden behind HTML entities). The result is ready to put inside quotes.
+ */
+function safe_url(string $url): string
+{
+    // undo entities first (twice, in case of &amp;#x61;), so "jav&#x61;script:" is seen for what it is
+    $plain = html_entity_decode(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $plain = trim((string)preg_replace('/[\x00-\x20\x7f]+/', '', $plain));
+    if (!preg_match('~^https?://[A-Za-z0-9.-]+(:\d+)?([/?#][^\s<>"\'`\\\\]*)?$~', $plain)) {
+        return '';
+    }
+    return htmlspecialchars($plain, ENT_QUOTES, 'ISO-8859-1');
+}
+
