@@ -22,6 +22,7 @@ require 'engine/mods/Daily.php';
 require 'engine/mods/Achievements.php';
 require 'engine/mods/Missions.php';
 require 'engine/mods/Bounties.php';
+require 'engine/mods/Crafting.php';
 require 'global_func.php';
 $set = [];
 include 'config.php';
@@ -301,6 +302,40 @@ foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `hp` = 100, `hospital` = 0, `exp` = 0, `level` = 1, `new_events` = 0');
+
+// crafting
+$db->exec('DELETE FROM `v3_recipes`');
+$db->exec('DELETE FROM `v3_recipe_parts`');
+$db->exec('DELETE FROM `inventory`');
+$held = fn (int $u, int $i): int => (int)$db->value('SELECT COALESCE(SUM(`inv_qty`), 0) FROM `inventory` WHERE `inv_userid` = ? AND `inv_itemid` = ?', [$u, $i]);
+check(is_string(craft_save(null, '', 4, 1, 0, 0, true, [1 => 2])) && is_string(craft_save(null, 'X', 999, 1, 0, 0, true, [1 => 2])) && is_string(craft_save(null, 'X', 4, 1, 0, 0, true, []))
+    && is_string(craft_save(null, 'X', 4, 1, 0, 0, true, [999 => 1])) && is_string(craft_save(null, 'X', 1, 2, 0, 0, true, [1 => 2])) && (int)$db->value('SELECT COUNT(*) FROM `v3_recipes`') === 0,
+    'a recipe with no name, no result, no ingredients, an unknown item, or that makes items from nothing is refused');
+$rid = craft_save(null, 'Trophy from scraps', 4, 1, 2, 100, true, [1 => 2, 2 => 1]);
+check(is_int($rid) && count(craft_recipes()[$rid]['parts']) === 2 && craft_recipes()[$rid]['result_name'] === 'Rare Trophy', 'a recipe is saved with its ingredients');
+item_add(2, 1, 5);
+item_add(2, 2, 1);
+$db->exec('UPDATE `users` SET `money` = 250 WHERE `userid` = 2');
+check(craft_make(2, $rid, 1) !== null && craft_make(2, 999, 5) !== null && $held(2, 1) === 5 && $bal(2)['money'] === 250, 'a recipe above your level, or that does not exist, makes nothing');
+check(craft_make(2, $rid, 2) === null && $held(2, 1) === 3 && $held(2, 2) === 0 && $held(2, 4) === 1 && $bal(2)['money'] === 150 + 500 /* Tinkerer */ && progress_get(2, 'crafted') === 1,
+    'crafting uses the ingredients and the fee and gives the result', [$held(2, 1), $held(2, 2), $held(2, 4), $bal(2)]);
+$money = $bal(2)['money'];
+$why = craft_make(2, $rid, 2);
+check($why !== null && str_contains($why, 'Baseball Bat') && $held(2, 1) === 3 && $bal(2)['money'] === $money && $held(2, 4) === 1,
+    'short of one ingredient: nothing is used, not even the fee or the ingredients you do have', $why);
+item_add(2, 2, 1);
+$db->exec('UPDATE `users` SET `money` = 50 WHERE `userid` = 2');
+check(str_contains((string)craft_make(2, $rid, 2), 'fee') && $held(2, 2) === 1, 'short of the fee: nothing is used');
+check(is_int(craft_save($rid, 'Trophy from scraps', 4, 2, 0, 0, false, [1 => 1])) && !isset(craft_recipes()[$rid]) && count(craft_recipes(false)[$rid]['parts']) === 1,
+    'a recipe can be edited, and switched off so players no longer see it');
+craft_delete($rid);
+check(craft_recipes(false) === [] && (int)$db->value('SELECT COUNT(*) FROM `v3_recipe_parts`') === 0, 'a recipe can be deleted');
+$db->exec('DELETE FROM `inventory`');
+$db->exec('DELETE FROM `events`');
+foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

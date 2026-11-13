@@ -65,6 +65,22 @@ const MCC_SCHEMA_STEPS = [
               KEY `open_on` (`status`, `target`),
               KEY `placed_by` (`placer`, `status`)
           ) ENGINE=InnoDB"],
+    // 5: crafting recipes
+    5 => ["CREATE TABLE IF NOT EXISTS `v3_recipes` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `name` VARCHAR(100) NOT NULL,
+              `result_item` INT NOT NULL,
+              `result_qty` INT NOT NULL DEFAULT 1,
+              `min_level` INT NOT NULL DEFAULT 0,
+              `cost` BIGINT NOT NULL DEFAULT 0,
+              `enabled` TINYINT NOT NULL DEFAULT 1
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_recipe_parts` (
+              `recipe` INT NOT NULL,
+              `item` INT NOT NULL,
+              `qty` INT NOT NULL,
+              PRIMARY KEY (`recipe`, `item`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

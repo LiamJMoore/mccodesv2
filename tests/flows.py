@@ -11,6 +11,8 @@ import os
 import re
 import sys
 import threading
+import urllib.parse
+import urllib.request
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "dev"))
 from gamelib import Server, Session, sql  # noqa: E402
@@ -626,14 +628,17 @@ def town(srv):
     s = Session(srv.base)
     s.login("player1", "playerpass1")
     # slots and roulette: one stake, many plays at once
-    for page, extra, stake, ends in (("slotsmachine.php", {}, 250, (0, 750, 6500)), ("roulette.php", {"number": "7"}, 150, (0, 5550))):
+    # (a win can pay for another play, so the test is that every play was paid for and the money adds up exactly)
+    for page, extra, stake in (("slotsmachine.php", {}, 250), ("roulette.php", {"number": "7"}, 150)):
         sql(f"UPDATE users SET money = {stake}, level = 1 WHERE userid = 2")
         n = iter(range(100, 999))
         out = many(srv, "player1", "playerpass1", 10, lambda: f"/{page}?tresde={next(n)}", dict({"bet": str(stake)}, **extra))
         played = sum("You bet" in b for b in out)
         refused = sum("more than you have" in b for b in out)
+        won = sum("lining up 2" in b for b in out) * stake * 3 + sum("lining up 3" in b for b in out) * stake * 26 + sum("matching the number" in b for b in out) * stake * 37
         m = balances(2)["money"]
-        check(played == 1 and refused == 9 and m in ends, f"{page}: ten plays at once on one stake of ${stake}: one play, nine refused", (played, refused, m))
+        check(played >= 1 and played + refused == 10 and m == stake - stake * played + won and (won > 0 or played == 1),
+              f"{page}: ten plays at once on one stake: every play is paid for, and with no win there is exactly one play", (played, refused, won, m))
     # lucky boxes
     sql("UPDATE users SET money = 1000, boxes_opened = 0 WHERE userid = 2")
     out = many(srv, "player1", "playerpass1", 10, "/lucky.php?open=1")
@@ -700,6 +705,39 @@ def items(srv):
     sql("UPDATE users SET energy = 12, new_events = 0")
 
 
+def crafting(srv):
+    print("Crafting")
+    for t in ("v3_recipes", "v3_recipe_parts", "inventory", "v3_progress", "v3_achievements", "v3_missions", "events"):
+        sql(f"DELETE FROM {t}")
+    staff = Session(srv.base)
+    staff.login("admin", "adminpass1")
+    _, _, body = staff.get("/staff_crafting.php")
+    check("There are no recipes yet" in body, "staff see the recipe page")
+    tok = re.search(r"name='verf' value='([^']+)'", body).group(1)
+    form = [("verf", tok), ("do", "save"), ("id", "0"), ("name", "Trophy from scraps"), ("result_qty", "1"), ("result_item", "4"),
+            ("part_qty[]", "2"), ("part_item[]", "1"), ("part_qty[]", "1"), ("part_item[]", "2"), ("cost", "100"), ("min_level", "0"), ("enabled", "1")]
+    req = urllib.request.Request(srv.base + "/staff_crafting.php", data=urllib.parse.urlencode(form).encode())
+    body = staff.open(req, timeout=30).read().decode("latin-1")
+    check("Recipe saved" in body and one("SELECT COUNT(*) FROM v3_recipe_parts") == "2", "staff can add a recipe with two ingredients")
+    player = Session(srv.base)
+    player.login("player1", "playerpass1")
+    _, _, body = player.get("/staff_crafting.php")
+    check("Trophy from scraps" not in body, "players cannot open the staff recipe page")
+    rid = one("SELECT id FROM v3_recipes")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (1, 2, 2), (2, 2, 1)")
+    sql("UPDATE users SET money = 100 WHERE userid = 2")
+    _, _, body = player.get("/craft.php")
+    check("Trophy from scraps" in body and "value='Make'" in body, "the workshop lists the recipe and offers to make it")
+    out = many(srv, "player1", "playerpass1", 10, "/craft.php", {"recipe": rid, "times": "1"}, token_path="/craft.php")
+    got = (inv(2, 4), inv(2, 1), inv(2, 2), balances(2)["money"])
+    check(sum("Made!" in x for x in out) == 1 and got == (1, 0, 0, 500), "ten logins crafting at once with ingredients for one: one is made, and nothing is used twice", (sum("Made!" in x for x in out), got))
+    _, _, body = player.get("/craft.php")
+    check("Missing something" in body, "the workshop then shows what is missing")
+    for t in ("v3_recipes", "v3_recipe_parts", "inventory", "v3_progress", "v3_achievements", "v3_missions", "events", "stafflog"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -719,6 +757,7 @@ def main():
         bounties(srv)
         town(srv)
         items(srv)
+        crafting(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
