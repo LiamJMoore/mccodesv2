@@ -15,6 +15,7 @@ require 'engine/helpers.php';
 require 'engine/Economy.php';
 require 'engine/Items.php';
 require 'engine/Formula.php';
+require 'engine/Combat.php';
 require 'engine/Schema.php';
 require 'engine/Progress.php';
 require 'engine/mods/Daily.php';
@@ -213,6 +214,57 @@ foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
 }
 $db->exec('DELETE FROM `events` WHERE `evUSER` = 2');
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0 WHERE `userid` = 2');
+
+// fights
+$user = fn (int $id): array => $db->row('SELECT * FROM `users` WHERE `userid` = ?', [$id]);
+$db->exec('UPDATE `users` SET `money` = 1000, `hp` = 0, `hospital` = 0, `gang` = 0, `level` = 3, `exp` = 0 WHERE `userid` = 3');
+$db->exec('UPDATE `users` SET `money` = 0, `exp` = 0, `gang` = 0, `level` = 1 WHERE `userid` = 2');
+$w = fight_win($user(2), 3, 'mug', 'the log');
+check($w !== null && $w['stole'] >= 2 && $w['stole'] <= 50 && $bal(2)['money'] === $w['stole'] + 500 /* First Blood */ && $bal(3)['money'] === 1000 - $w['stole'] && (int)$user(3)['hp'] === 1 && (int)$user(3)['hospital'] >= 20
+    && (int)$db->value('SELECT `stole` FROM `attacklogs` WHERE `attacker` = 2 AND `attacked` = 3 ORDER BY `log_id` DESC LIMIT 1') === $w['stole'],
+    'mugging moves a share of the loser\'s money to the winner, puts them in hospital and logs the fight', $w['stole'] ?? null);
+check(fight_win($user(2), 3, 'mug') === null && fight_win($user(2), 3, 'hospitalise') === null && $bal(3)['money'] === 1000 - $w['stole'], 'a fight that is already finished cannot be finished again');
+check(fight_win($user(2), 2, 'mug') === null && fight_win($user(2), 99999, 'leave') === null, 'you cannot win against yourself or against nobody');
+$db->exec('UPDATE `users` SET `hp` = 0, `hospital` = 0 WHERE `userid` = 3');
+$w = fight_win($user(2), 3, 'leave');
+check($w['exp'] >= 13 && $w['exp'] <= 27 && (float)$user(2)['exp'] == $w['exp'] && $w['stole'] === 0, 'leaving them gives experience from the loser\'s level and takes no money', $w['exp']);
+// a challenge bot pays its prize the first time only
+$db->exec('UPDATE `users` SET `hp` = 0, `hospital` = 0, `user_level` = 0, `money` = 0 WHERE `userid` = 4');
+$db->exec('DELETE FROM `challengebots`');
+$db->exec('DELETE FROM `challengesbeaten`');
+$db->insert('challengebots', ['cb_npcid' => 4, 'cb_money' => 500]);
+$before = $bal(2)['money'];
+$w1 = fight_win($user(2), 4, 'hospitalise');
+$db->exec('UPDATE `users` SET `hp` = 0 WHERE `userid` = 4');
+$w2 = fight_win($user(2), 4, 'hospitalise');
+check($w1['bot_money'] === 500 && $w2['bot_money'] === 0 && $bal(2)['money'] === $before + 500, 'a challenge bot pays its prize the first time it is beaten, and only then');
+// gangs at war
+$db->exec('DELETE FROM `gangs`');
+$db->exec('DELETE FROM `gangwars`');
+$db->run("INSERT INTO `gangs` (`gangID`, `gangNAME`, `gangDESC`, `gangPREF`, `gangSUFF`, `gangMONEY`, `gangCRYSTALS`, `gangRESPECT`, `gangPRESIDENT`, `gangVICEPRES`, `gangCAPACITY`, `gangCRIME`, `gangCHOURS`, `gangAMENT`)
+          VALUES (1, 'Reds', '', '', '', 0, 0, 100, 2, 2, 5, 0, 0, ''), (2, 'Blues', '', '', '', 0, 0, 3, 3, 3, 5, 0, 0, '')");
+$db->exec('UPDATE `users` SET `gang` = 1 WHERE `userid` = 2');
+$db->exec('UPDATE `users` SET `gang` = 2, `hp` = 0, `user_level` = 1 WHERE `userid` = 3');
+$w = fight_win($user(2), 3, 'mug');
+check($w['respect'] === 0 && (int)$db->value('SELECT `gangRESPECT` FROM `gangs` WHERE `gangID` = 2') === 3, 'gangs that are not at war do not trade respect');
+$db->run('INSERT INTO `gangwars` (`warDECLARER`, `warDECLARED`, `warTIME`) VALUES (1, 2, ?)', [time()]);
+$db->exec('UPDATE `users` SET `hp` = 0 WHERE `userid` = 3');
+$w = fight_win($user(2), 3, 'mug');
+check($w['respect'] === 2 && (int)$db->value('SELECT `gangRESPECT` FROM `gangs` WHERE `gangID` = 2') === 1 && (int)$db->value('SELECT `gangRESPECT` FROM `gangs` WHERE `gangID` = 1') === 102,
+    'gangs at war: a mugging moves 2 respect to the winner\'s gang');
+$db->exec('UPDATE `users` SET `hp` = 0 WHERE `userid` = 3');
+$w = fight_win($user(2), 3, 'hospitalise');
+check($w['respect'] === 3 && (int)$db->value('SELECT COUNT(*) FROM `gangs`') === 1 && (int)$user(3)['gang'] === 0 && (int)$db->value('SELECT COUNT(*) FROM `gangwars`') === 0,
+    'a gang that runs out of respect is disbanded and its wars end');
+$db->exec('DELETE FROM `gangs`');
+$db->exec('DELETE FROM `challengebots`');
+$db->exec('DELETE FROM `challengesbeaten`');
+$db->exec('DELETE FROM `attacklogs`');
+$db->exec('DELETE FROM `events`');
+foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `hp` = 100, `maxhp` = 100, `hospital` = 0, `gang` = 0, `level` = 1, `exp` = 0, `new_events` = 0, `user_level` = IF(`userid` = 1, 2, 1), `attacking` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

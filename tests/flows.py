@@ -511,9 +511,49 @@ def missions(srv):
     sql("UPDATE userstats SET strength = 10, agility = 10 WHERE userid = 2")
 
 
+def fights(srv):
+    print("Fights")
+    for t in ("v3_progress", "v3_achievements", "v3_missions", "attacklogs", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET attacking = 0, hospital = 0, jail = 0, gang = 0, hp = 100, maxhp = 100, level = 1, exp = 0")
+    sql("UPDATE users SET money = 0, energy = 12, maxenergy = 12, equip_primary = 2, location = 1 WHERE userid = 2")
+    sql("UPDATE userstats SET strength = 100000, agility = 100000, guard = 100000 WHERE userid = 2")
+    sql("UPDATE users SET money = 10000, location = 1 WHERE userid = 3")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/attacklost.php?ID=3")
+    check("You have not just lost a fight" in body and one("SELECT COUNT(*) FROM events WHERE evUSER = 3") == "0" and one("SELECT COUNT(*) FROM attacklogs") == "0",
+          "the 'you lost' page does nothing unless you have just lost a fight")
+    _, _, body = s.get("/attackwon.php?ID=3")
+    check("Cheaters" in body and balances(3)["money"] == 10000, "the 'you won' page does nothing unless you have just won that fight")
+
+    def beat(sess):
+        for step in range(1, 40):
+            _, _, body = sess.get(f"/attack.php?ID=3&wepid=2&nextstep={step * 2 - 1}")
+            if "Mug Them" in body:
+                return True
+        return False
+
+    def mug(sess, prepare=False, prepared=None):
+        if prepare:
+            return beat(sess)
+        _, _, body = sess.get("/attackwon.php?ID=3", {})
+        return "snatch" in body
+    out = at_once(srv.base, "player1", "playerpass1", 8, mug)
+    a, b = balances(2)["money"], balances(3)["money"]
+    check(sum(out) == 1 and a + b == 10000 + 500 and 10000 - b >= 20 and one("SELECT hp FROM users WHERE userid = 3") == "1"
+          and one("SELECT COUNT(*) FROM attacklogs") == "1" and one("SELECT amount FROM v3_progress WHERE userid = 2 AND stat = 'fights_won'") == "1",
+          "eight logins that each won the same fight, all mugging at once: the loser is mugged once and no money appears from nowhere", (sum(out), a, b))
+    check(one("SELECT energy FROM users WHERE userid = 2") == "6", "starting the fight cost half the energy bar, once")
+    for t in ("v3_progress", "v3_achievements", "v3_missions", "attacklogs", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET attacking = 0, hospital = 0, hp = 100, maxhp = 100, level = 1, exp = 0, money = 100, crystals = 10, energy = 12, equip_primary = 0, new_events = 0")
+    sql("UPDATE userstats SET strength = 10, agility = 10, guard = 10")
+
+
 def main():
     with Server(8770) as srv:
-        sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0")
+        sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
         sql("UPDATE cron_times SET last_run = NOW() + INTERVAL 1 DAY")      # no timed update lands in the middle of a flow
         crons(srv)
         shop(srv)
@@ -526,6 +566,7 @@ def main():
         crimes(srv)
         temple(srv)
         missions(srv)
+        fights(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

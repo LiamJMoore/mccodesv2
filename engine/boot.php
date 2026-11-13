@@ -23,6 +23,7 @@ require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/Economy.php';
 require_once __DIR__ . '/Items.php';
 require_once __DIR__ . '/Formula.php';
+require_once __DIR__ . '/Combat.php';
 require_once __DIR__ . '/Schema.php';
 require_once __DIR__ . '/Progress.php';
 require_once __DIR__ . '/mods/Daily.php';

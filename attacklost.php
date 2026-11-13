@@ -14,6 +14,15 @@ require_once('globals.php');
 $_GET['ID'] =
         (isset($_GET['ID']) && is_numeric($_GET['ID']))
                 ? abs((int) $_GET['ID']) : 0;
+// engine v3: v2 let anyone open this page at any time, against anyone: it cost a little EXP, but it sent the other
+// player an event each time and, between gangs at war, handed their gang respect. It now needs a fight you lost.
+if (empty($_SESSION['attacklost']) || (int) $ir['attacking'] !== $_GET['ID'] || $_GET['ID'] === 0)
+{
+    $_SESSION['attacklost'] = 0;
+    echo 'You have not just lost a fight.<br />&gt; <a href="index.php">Go Home</a>';
+    $h->endpage();
+    exit;
+}
 $_SESSION['attacking'] = 0;
 $_SESSION['attacklost'] = 0;
 $od =
