@@ -764,6 +764,10 @@ function check_level(): void
         $ir['maxbrave'] += 2;
         $ir['hp'] += 50;
         $ir['maxhp'] += 50;
+        if (function_exists('progress_max'))
+        {
+            progress_max((int) $userid, 'level', (int) $ir['level']);
+        }
         $ir['exp_needed'] =
                 (int) (($ir['level'] + 1) * ($ir['level'] + 1)
                         * ($ir['level'] + 1) * 2.2);

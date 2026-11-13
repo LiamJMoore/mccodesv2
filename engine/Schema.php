@@ -24,6 +24,33 @@ const MCC_SCHEMA_STEPS = [
               `best` INT NOT NULL DEFAULT 0,
               `claims` INT NOT NULL DEFAULT 0
           ) ENGINE=InnoDB"],
+    // 3: counters of what players have done, the achievements they hold, and each day's missions
+    3 => ["CREATE TABLE IF NOT EXISTS `v3_progress` (
+              `userid` INT NOT NULL,
+              `stat` VARCHAR(32) NOT NULL,
+              `amount` BIGINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `stat`),
+              KEY `top` (`stat`, `amount`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_achievements` (
+              `userid` INT NOT NULL,
+              `ach` VARCHAR(32) NOT NULL,
+              `earned` INT NOT NULL,
+              PRIMARY KEY (`userid`, `ach`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_missions` (
+              `userid` INT NOT NULL,
+              `day` DATE NOT NULL,
+              `slot` TINYINT NOT NULL,
+              `mission` VARCHAR(32) NOT NULL,
+              `stat` VARCHAR(32) NOT NULL,
+              `target` INT NOT NULL,
+              `progress` INT NOT NULL DEFAULT 0,
+              `reward` BIGINT NOT NULL DEFAULT 0,
+              `claimed` TINYINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `day`, `slot`),
+              KEY `counting` (`userid`, `day`, `stat`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

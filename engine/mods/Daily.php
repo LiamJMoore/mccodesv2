@@ -75,5 +75,9 @@ function daily_claim(int $userid, int $level = 1, ?string $today = null): ?array
         $paid = ['day' => $day] + $reward;
         return true;
     });
+    if ($paid !== null && function_exists('progress_add')) {
+        progress_add($userid, 'daily');
+        progress_max($userid, 'streak', $paid['day']);
+    }
     return $paid;
 }

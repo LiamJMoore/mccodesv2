@@ -66,6 +66,7 @@ if (isset($_POST['stat']) && $_POST['amnt'])
         }
         $db->exec("UPDATE `userstats` SET `{$stat}` = `{$stat}` + ? WHERE `userid` = ?", [$gain, $userid]);
         $db->exec('UPDATE `users` SET `will` = ? WHERE `userid` = ?', [$ir['will'], $userid]);
+        progress_add($userid, 'gym', $_POST['amnt']);
         $inc = $ir[$stat] + $gain;
         $inc2 = $ir['energy'] - $_POST['amnt'];
         if ($stat == 'strength')

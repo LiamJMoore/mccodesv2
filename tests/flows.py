@@ -445,6 +445,72 @@ def crons(srv):
     sql("UPDATE users SET level = 1, exp = 0, brave = 5, maxbrave = 5, energy = 12, maxenergy = 12, hp = 100, maxhp = 100 WHERE userid = 2")
 
 
+def missions(srv):
+    print("Missions and achievements")
+    for t in ("v3_progress", "v3_achievements", "v3_missions"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET brave = 50, maxbrave = 50, money = 0, crystals = 0, exp = 0, level = 1, energy = 12 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/missions.php")
+    check(body.count("In progress") == 3 and one("SELECT COUNT(*) FROM v3_missions WHERE userid = 2") == "3", "the missions page hands out three missions")
+    sql("UPDATE v3_missions SET mission = 'crimes', stat = 'crimes', target = 2, reward = 700 WHERE userid = 2 AND slot = 1")
+    sql("UPDATE v3_missions SET mission = 'gym', stat = 'gym', target = 3, reward = 800 WHERE userid = 2 AND slot = 2")
+    sql("UPDATE v3_missions SET mission = 'shop', stat = 'shop_buy', target = 1, reward = 900 WHERE userid = 2 AND slot = 3")
+    s.get("/docrime.php?c=1")
+    s.get("/docrime.php?c=1")
+    s.form("/gym.php", {"stat": "Agility", "amnt": "3"})
+    money = balances(2)["money"]
+    s.form("/itembuy.php?ID=1", {"qty": "1"}, token_from="/shops.php?shop=1")
+    prog = sql("SELECT progress FROM v3_missions WHERE userid = 2 ORDER BY slot")
+    check(prog == [["2"], ["3"], ["1"]] and one("SELECT amount FROM v3_progress WHERE userid = 2 AND stat = 'crimes'") == "2",
+          "committing crimes, training and shopping through the real pages move the matching missions", prog)
+    _, _, body = s.get("/missions.php")
+    check(body.count("value='Collect'") == 3, "finished missions offer their reward")
+    s.get("/missions.php", {"slot": "1", "verf": "wrong"})
+    check(one("SELECT claimed FROM v3_missions WHERE userid = 2 AND slot = 1") == "0", "collecting without the form's token pays nothing")
+    sql("UPDATE users SET money = 0, crystals = 0 WHERE userid = 2")
+
+    def collect(sess, prepare=False, prepared=None):
+        if prepare:
+            return token(sess, "/missions.php")
+        _, _, body = sess.get("/missions.php", {"slot": "1", "verf": prepared})
+        return "Mission complete" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, collect)
+    check(sum(out) == 1 and balances(2)["money"] == 700, "ten logins collecting the same mission at once: paid once", (sum(out), balances(2)["money"]))
+
+    # the last two collected at the same moment: both pay, the all-three bonus is paid once
+    sessions = []
+
+    def last_two(sess, prepare=False, prepared=None):
+        if prepare:
+            sessions.append(sess)
+            return token(sess, "/missions.php")
+        slot = "2" if sessions.index(sess) % 2 == 0 else "3"
+        _, _, body = sess.get("/missions.php", {"slot": slot, "verf": prepared})
+        return "Mission complete" in body
+    out = at_once(srv.base, "player1", "playerpass1", 8, last_two)
+    b = balances(2)
+    check(sum(out) == 2 and b["money"] == 700 + 800 + 900 and b["crystals"] == 3, "the last two missions collected together: each pays once, and the bonus for all three is paid once", (sum(out), b))
+    _, _, body = s.get("/missions.php")
+    check("All done for today" in body, "the page then shows the day as done")
+
+    sql("UPDATE users SET brave = 50, money = 0, crystals = 0 WHERE userid = 2")
+    sql("UPDATE v3_progress SET amount = 9 WHERE userid = 2 AND stat = 'crimes'")
+    out = at_once(srv.base, "player1", "playerpass1", 10, lambda sess, prepare=False, prepared=None: None if prepare else "You find 80" in sess.get("/docrime.php?c=1")[2])
+    got = one("SELECT COUNT(*) FROM v3_achievements WHERE userid = 2 AND ach = 'crimes_10'")
+    check(sum(out) == 10 and got == "1" and balances(2)["money"] == 10 * 80 + 1000, "ten crimes at once crossing an achievement's target: unlocked and paid once", (sum(out), got, balances(2)["money"]))
+    _, _, body = s.get("/achievements.php")
+    check("Petty Thief" in body and "Unlocked" in body and "Your Achievements" in body, "the achievements page shows what is unlocked")
+    _, _, body = s.get("/achievements.php?u=3")
+    check("Achievements of player2" in body, "you can look at another player's achievements")
+    for t in ("v3_progress", "v3_achievements", "v3_missions"):
+        sql(f"DELETE FROM {t}")
+    sql("DELETE FROM inventory WHERE inv_userid = 2")
+    sql("UPDATE users SET brave = 5, maxbrave = 5, money = 100, crystals = 10, exp = 0, level = 1, energy = 12, maxenergy = 12, crimexp = 0 WHERE userid = 2")
+    sql("UPDATE userstats SET strength = 10, agility = 10 WHERE userid = 2")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0")
@@ -459,6 +525,7 @@ def main():
         gym(srv)
         crimes(srv)
         temple(srv)
+        missions(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

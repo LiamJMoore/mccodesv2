@@ -16,7 +16,11 @@ require 'engine/Economy.php';
 require 'engine/Items.php';
 require 'engine/Formula.php';
 require 'engine/Schema.php';
+require 'engine/Progress.php';
 require 'engine/mods/Daily.php';
+require 'engine/mods/Achievements.php';
+require 'engine/mods/Missions.php';
+require 'global_func.php';
 $set = [];
 include 'config.php';
 require 'class/class_db_mysqli.php';
@@ -114,6 +118,9 @@ check(schema_latest() >= 2 && (int)$db->value("SELECT `conf_value` FROM `setting
     'the database is on the latest schema step, and asking again applies nothing');
 
 // the daily reward
+$db->exec('DELETE FROM `v3_progress` WHERE `userid` = 2');
+$db->exec('DELETE FROM `v3_achievements` WHERE `userid` = 2');
+$db->exec('DELETE FROM `v3_missions` WHERE `userid` = 2');
 $db->exec('DELETE FROM `v3_daily` WHERE `userid` = 2');
 $db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
 check(daily_reward(1) === ['money' => 500, 'crystals' => 0] && daily_reward(7) === ['money' => 5000, 'crystals' => 5] && daily_reward(8) === ['money' => 500, 'crystals' => 0]
@@ -130,14 +137,82 @@ for ($i = 2; $i <= 7; $i++) {
     $day = date('Y-m-d', strtotime($day . ' +1 day'));
     $p = daily_claim(2, 1, $day);
 }
-check($p === ['day' => 7, 'money' => 5000, 'crystals' => 5] && $bal(2)['crystals'] === 5 && $bal(2)['money'] === 500 + 750 + 1000 + 1500 + 2000 + 3000 + 5000,
-    'seven days in a row reach the weekly bonus');
+check($p === ['day' => 7, 'money' => 5000, 'crystals' => 5] && $bal(2)['crystals'] === 5 + 5 && $bal(2)['money'] === 500 + 750 + 1000 + 1500 + 2000 + 3000 + 5000 + 5000
+    && isset(achievements_earned(2)['daily_7']), 'seven days in a row reach the weekly bonus, and unlock the Regular achievement with its own reward');
 $p = daily_claim(2, 1, '2026-03-10');
 $st = daily_status(2, 1, '2026-03-10');
 check($p['day'] === 1 && $st['streak'] === 1 && $st['best'] === 7 && $st['claims'] === 8 && daily_status(2, 1, '2026-03-15')['streak'] === 0,
     'missing a day starts the streak again at day 1, and the longest streak is remembered');
 $db->exec('DELETE FROM `v3_daily` WHERE `userid` = 2');
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10 WHERE `userid` = 2');
+
+// progress, achievements, missions
+foreach (['v3_progress', 'v3_achievements', 'v3_missions', 'v3_daily'] as $t) {
+    $db->exec("DELETE FROM `{$t}` WHERE `userid` = 2");
+}
+$db->exec('DELETE FROM `events` WHERE `evUSER` = 2');
+$db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
+check(progress_add(2, 'crimes', 4) === 4 && progress_add(2, 'crimes') === 5 && progress_get(2, 'crimes') === 5 && progress_max(2, 'level', 3) === 3 && progress_max(2, 'level', 2) === 3
+    && progress_all(2)['gym'] === 0, 'progress_add() counts up, progress_max() only ever rises');
+$threw = false;
+try {
+    progress_add(2, 'nonsense');
+} catch (InvalidArgumentException) {
+    $threw = true;
+}
+check($threw && achievements_earned(2) === [] && $bal(2)['money'] === 0, 'an unknown counter is refused, and nothing is awarded below a target');
+progress_add(2, 'crimes', 5);
+check(array_keys(achievements_earned(2)) === ['crimes_10'] && $bal(2)['money'] === 1000, 'reaching 10 crimes unlocks Petty Thief and pays its reward');
+progress_add(2, 'crimes', 5);
+achievements_check(2, 'crimes', 0, 15);
+check($bal(2)['money'] === 1000 && (int)$db->value("SELECT COUNT(*) FROM `events` WHERE `evUSER` = 2 AND `evTEXT` LIKE '%Petty Thief%'") === 1, 'an achievement is paid, and announced, once');
+progress_add(2, 'crimes', 2000);
+check(count(achievements_earned(2)) === 3 && $bal(2)['money'] === 1000 + 10000 + 100000 && $bal(2)['crystals'] === 30, 'a jump past several targets unlocks each of them');
+$db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
+
+$ms = missions_today(2, 4, '2026-05-01');
+$again = missions_today(2, 9, '2026-05-01');
+check(count($ms) === 3 && $ms === $again && count(array_unique(array_column($ms, 'mission'))) === 3 && missions_today(3, 1, '2026-05-01') != [],
+    'a player gets three different missions for the day, the same ones however often they look');
+$other = array_column(missions_today(2, 4, '2026-05-02'), 'mission');
+$days = [];
+for ($d = 1; $d <= 20; $d++) {
+    $days[] = implode(',', array_column(missions_today(2, 1, sprintf('2026-06-%02d', $d)), 'mission'));
+}
+check(count(array_unique($days)) > 5, 'the missions change from day to day', count(array_unique($days)));
+check(!array_intersect(array_merge(...array_map(fn ($d) => explode(',', $d), $days)), ['crafted', 'bounties']) || function_exists('craft_make') || function_exists('bounty_place'),
+    'missions for features that are not installed are never handed out');
+// today's, for real: progress and claiming
+$db->exec('DELETE FROM `v3_missions` WHERE `userid` = 2');
+$today = missions_today(2, 2);
+$m = $today[0];
+check(mission_claim(2, (int)$m['slot']) === null && $bal(2)['money'] === 0, 'an unfinished mission cannot be collected');
+$db->exec('UPDATE `v3_missions` SET `stat` = ?, `mission` = ?, `target` = 3 WHERE `userid` = 2 AND `slot` = 1', ['gym', 'gym']);
+$db->exec('UPDATE `v3_missions` SET `stat` = ?, `mission` = ?, `target` = 1 WHERE `userid` = 2 AND `slot` = 2', ['shop_buy', 'shop']);
+$db->exec('UPDATE `v3_missions` SET `stat` = ?, `mission` = ?, `target` = 1 WHERE `userid` = 2 AND `slot` = 3', ['fights_won', 'fights']);
+progress_add(2, 'gym', 2);
+$p1 = (int)$db->value('SELECT `progress` FROM `v3_missions` WHERE `userid` = 2 AND `slot` = 1');
+progress_add(2, 'gym', 50);
+$p2 = (int)$db->value('SELECT `progress` FROM `v3_missions` WHERE `userid` = 2 AND `slot` = 1');
+check($p1 === 2 && $p2 === 3, 'doing the thing moves the mission, and it stops at its target');
+$reward = (int)$db->value('SELECT `reward` FROM `v3_missions` WHERE `userid` = 2 AND `slot` = 1');
+$paid = mission_claim(2, 1);
+check($paid === ['money' => $reward, 'crystals' => 0] && $bal(2)['money'] === $reward && mission_claim(2, 1) === null && $bal(2)['money'] === $reward, 'a finished mission pays once');
+progress_add(2, 'shop_buy');
+progress_add(2, 'fights_won');
+$money = $bal(2)['money'];
+$a = mission_claim(2, 2);
+$b = mission_claim(2, 3);
+check($a['crystals'] === 0 && $b['crystals'] === MCC_MISSION_ALL_CRYSTALS && $bal(2)['crystals'] === MCC_MISSION_ALL_CRYSTALS + 1 && progress_get(2, 'missions') === 3,
+    'collecting all three pays the bonus crystals once (plus First Blood for the fight)', [$a, $b, $bal(2)]);
+check(mission_text(['mission' => 'crimes', 'target' => 1]) === 'Commit a successful crime' && mission_text(['mission' => 'gym', 'target' => 1]) === 'Train once in the gym'
+    && mission_text(['mission' => 'fights', 'target' => 1]) === 'Win a fight' && mission_text(['mission' => 'fights', 'target' => 2]) === 'Win 2 fights', 'mission wording reads properly for one and for several',
+    [mission_text(['mission' => 'crimes', 'target' => 1]), mission_text(['mission' => 'gym', 'target' => 1]), mission_text(['mission' => 'fights', 'target' => 1])]);
+foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}` WHERE `userid` IN (2, 3)");
+}
+$db->exec('DELETE FROM `events` WHERE `evUSER` = 2');
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0 WHERE `userid` = 2');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

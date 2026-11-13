@@ -56,6 +56,7 @@ You hide your weapons and drop {$r['username']} off outside the hospital entranc
                 "INSERT INTO `attacklogs` VALUES(NULL, $userid, {$_GET['ID']},
                         'won', " . time() . ", -2, '$atklog')");
         $_SESSION['attackwon'] = 0;
+        progress_add($userid, 'fights_won');
         if ($ir['gang'] > 0 && $r['gang'] > 0)
         {
             $gq =

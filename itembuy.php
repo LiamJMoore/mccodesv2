@@ -75,6 +75,7 @@ else
         }
 
         item_add($userid, (int) $itemd['itmid'], (int) $_POST['qty']);
+        progress_add($userid, 'shop_buy', (int) $_POST['qty']);
         $ib_log =
                 $db->escape(
                         "{$ir['username']} bought {$_POST['qty']} "

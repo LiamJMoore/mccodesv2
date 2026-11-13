@@ -51,6 +51,7 @@ You beat {$r['username']} severely on the ground. When there is lots of blood sh
                 "INSERT INTO `attacklogs` VALUES(NULL, $userid, {$_GET['ID']},
                         'won', " . time() . ", -1, '$atklog')");
         $_SESSION['attackwon'] = 0;
+        progress_add($userid, 'fights_won');
         if ($ir['gang'] > 0 && $r['gang'] > 0)
         {
             $gq =
