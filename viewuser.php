@@ -205,6 +205,7 @@ else
 				[<a href='attack.php?ID={$r['userid']}'>Attack</a>]
 				[<a href='bounties.php?target={$r['userid']}'>Place a bounty</a>]
 				[<a href='achievements.php?u={$r['userid']}'>Achievements</a>]
+				[<a href='record.php?u={$r['userid']}'>Record</a>]
 				<br /><br />
 				[<a href='contactlist.php?action=add&ID={$r['userid']}'>Add Contact</a>]
    		";

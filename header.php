@@ -103,6 +103,8 @@ EOF;
         $bgcolor = 'FFFFFF';
 
         $initial = strtoupper(substr((string)$ir['username'], 0, 1));
+        // engine v3: the notifications bell
+        $bell = function_exists('notify_bell') ? notify_bell((int)$ir['userid'], (int)$ir['new_events'] + (int)$ir['new_mail']) : '';
         print
             <<<OUT
 <aside class="side">
@@ -111,6 +113,7 @@ EOF;
   <div class="player-top">
     <span class="avatar">{$initial}</span>
     <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level {$ir['level']}</small></div>
+    {$bell}
   </div>
   <div class="wallet">
     <div><small>Money</small><b>{$fm}</b></div>
@@ -202,6 +205,7 @@ OUT;
 <footer class="foot">{$db->num_queries} queries{$query_extra}</footer>
 </main>
 </div>
+<script src="js/notify.js" defer></script>
 </body>
 </html>
 OUT;

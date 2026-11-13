@@ -23,6 +23,8 @@ require 'engine/mods/Achievements.php';
 require 'engine/mods/Missions.php';
 require 'engine/mods/Bounties.php';
 require 'engine/mods/Crafting.php';
+require 'engine/mods/Notify.php';
+require 'engine/mods/Api.php';
 require 'global_func.php';
 $set = [];
 include 'config.php';
@@ -209,7 +211,7 @@ $b = mission_claim(2, 3);
 check($a['crystals'] === 0 && $b['crystals'] === MCC_MISSION_ALL_CRYSTALS && $bal(2)['crystals'] === MCC_MISSION_ALL_CRYSTALS + 1 && progress_get(2, 'missions') === 3,
     'collecting all three pays the bonus crystals once (plus First Blood for the fight)', [$a, $b, $bal(2)]);
 check(mission_text(['mission' => 'crimes', 'target' => 1]) === 'Commit a successful crime' && mission_text(['mission' => 'gym', 'target' => 1]) === 'Train once in the gym'
-    && mission_text(['mission' => 'fights', 'target' => 1]) === 'Win a fight' && mission_text(['mission' => 'fights', 'target' => 2]) === 'Win 2 fights', 'mission wording reads properly for one and for several',
+    && mission_text(['mission' => 'fights', 'target' => 1]) === 'Win a fight' && mission_text(['mission' => 'bounties', 'target' => 1]) === 'Collect a bounty' && mission_text(['mission' => 'shop', 'target' => 1]) === 'Buy an item from a shop' && mission_text(['mission' => 'fights', 'target' => 2]) === 'Win 2 fights', 'mission wording reads properly for one and for several',
     [mission_text(['mission' => 'crimes', 'target' => 1]), mission_text(['mission' => 'gym', 'target' => 1]), mission_text(['mission' => 'fights', 'target' => 1])]);
 foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}` WHERE `userid` IN (2, 3)");
@@ -336,6 +338,55 @@ foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0');
+
+// notifications
+$db->exec('DELETE FROM `events`');
+$db->exec('DELETE FROM `mail`');
+check(notify_summary(2) === ['events' => 0, 'mail' => 0, 'total' => 0, 'items' => []] && str_contains(notify_bell(2, 0), 'Nothing new') && str_contains(notify_bell(2, 0), "class='bell-n' hidden"),
+    'with nothing waiting the bell is empty and shows no number');
+$db->insert('events', ['evUSER' => 2, 'evTIME' => time() - 120, 'evREAD' => 0, 'evTEXT' => "<a href='viewuser.php?u=3'>player2</a> mugged you and stole \$50. <script>alert(1)</script>"]);
+$db->insert('events', ['evUSER' => 2, 'evTIME' => time() - 9000, 'evREAD' => 1, 'evTEXT' => 'an old one, already read']);
+$db->insert('mail', ['mail_read' => 0, 'mail_from' => 3, 'mail_to' => 2, 'mail_time' => time() - 10, 'mail_subject' => 'Hello <b>there</b>', 'mail_text' => 'x']);
+$n = notify_summary(2);
+check($n['events'] === 1 && $n['mail'] === 1 && $n['total'] === 2 && $n['items'][0]['type'] === 'mail' && $n['items'][0]['text'] === 'Mail from player2: Hello there'
+    && $n['items'][1]['text'] === 'player2 mugged you and stole $50. alert(1)' && $n['items'][1]['ago'] === '2m', 'the bell lists unread events and mail, newest first, as plain words', $n);
+$bell = notify_bell(2, 2);
+check(str_contains($bell, ">2</b>") && !str_contains($bell, '<script>') && !str_contains($bell, 'already read'), 'the bell shows the count, and never prints an event\'s HTML');
+check(notify_ago(100, 130) === 'just now' && notify_ago(0, 3600 * 5) === '5h' && notify_ago(0, 86400 * 3) === '3d' && strlen(notify_plain(str_repeat('word ', 100))) <= 110, 'times and long texts are shortened');
+
+// the player API
+$db->exec('DELETE FROM `v3_api_keys`');
+$key = api_key_create(2);
+check(preg_match('/^[0-9a-f]{40}$/', $key) === 1 && (int)$db->value('SELECT COUNT(*) FROM `v3_api_keys` WHERE `key_hash` = ?', [$key]) === 0
+    && $db->value('SELECT `key_hash` FROM `v3_api_keys` WHERE `userid` = 2') === hash('sha256', $key), 'a new key is 40 characters, and only its fingerprint is stored');
+check(api_key_use($key, 6000) === 2 && api_key_use('nope') === 0 && api_key_use(str_repeat('a', 40)) === 0 && (int)api_key_info(2)['calls'] === 1, 'a key identifies its player; anything else identifies nobody');
+$used = 1;
+for ($i = 0; $i < MCC_API_PER_MINUTE + 5; $i++) {
+    $used += api_key_use($key, 6001) === 2 ? 1 : 0;
+}
+check($used === MCC_API_PER_MINUTE && api_key_use($key, 6059) === -1 && api_key_use($key, 6060) === 2, 'a key is allowed ' . MCC_API_PER_MINUTE . ' requests in a minute, then refused until the next minute', $used);
+$key2 = api_key_create(2);
+check(api_key_use($key) === 0 && api_key_use($key2) === 2, 'replacing a key stops the old one working');
+api_key_revoke(2);
+check(api_key_use($key2) === 0 && api_key_info(2) === null, 'a revoked key stops working');
+$me = api_me(2);
+$other = api_player(3);
+check($me['name'] === 'player1' && isset($me['money'], $me['bars']['energy'], $me['stats']['strength'], $me['progress']['crimes']) && $me['unread'] === ['events' => 0, 'mail' => 0] || $me['unread']['events'] >= 0,
+    'do=me gives the player their own money, bars, stats and progress');
+check($other['name'] === 'player2' && !isset($other['money']) && !isset($other['stats']) && !isset($other['bars']) && api_player(99999) === null, 'do=player gives only what a profile shows: no money, stats or bars');
+progress_add(3, 'crimes', 7);
+progress_add(2, 'crimes', 4);
+$top = api_top('crimes');
+check(array_column($top, 'id') === [3, 2] && $top[0] === ['rank' => 1, 'id' => 3, 'name' => 'player2', 'value' => 7] && api_rank(2, 'crimes') === 2 && api_rank(4, 'crimes') === null
+    && api_top('userpass') === [] && !in_array(1, array_column(api_top('level', 50), 'id'), true), 'leaderboards rank players by a counter, leave staff out, and refuse a column that is not a leaderboard');
+$g = api_game();
+check($g['players'] === 4 && $g['engine'] === MCC_ENGINE_VERSION && isset($g['online_now'], $g['money_in_pockets']), 'do=game describes the game as a whole');
+$db->exec('DELETE FROM `events`');
+$db->exec('DELETE FROM `mail`');
+foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0, `new_mail` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

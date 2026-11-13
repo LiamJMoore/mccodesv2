@@ -209,3 +209,30 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
   .nav-clock{flex-basis:100%;margin:10px 4px 0}
 }
 @media (max-width:600px){.dash-card header{flex-wrap:wrap}.dash-card h3{white-space:nowrap}.dash-card{padding:16px}.dash-stats{gap:10px}}
+
+/* -- engine v3: notifications bell -------------------------------------- */
+.player-top{position:relative}
+.bell{margin-left:auto;flex:none}   /* the list is placed against the player card, not the bell, so it never leaves the screen */
+.bell summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--mute);
+  border:1px solid var(--line);background:rgba(255,255,255,.03);position:relative;transition:color .15s,border-color .15s}
+.bell summary::-webkit-details-marker{display:none}
+.bell summary:hover,.bell[open] summary{color:#fff;border-color:rgba(124,92,255,.6)}
+.bell summary:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+.bell-n{position:absolute;top:-5px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#F43F5E;color:#fff;
+  font:700 11px/18px var(--body);text-align:center}
+.bell-n[hidden]{display:none}
+.bell.bell-new summary{animation:bellring .9s ease 2}
+@keyframes bellring{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(5deg)}}
+@media (prefers-reduced-motion:reduce){.bell.bell-new summary{animation:none}}
+.bell-list{position:absolute;z-index:50;top:52px;left:0;right:0;background:#141B2D;border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:0 18px 50px rgba(0,0,0,.55);overflow:hidden;text-align:left}
+.bell-items{max-height:340px;overflow:auto}
+.bell-item{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);
+  color:var(--ink)!important;font-size:13px;line-height:1.4}
+.bell-item:hover{background:rgba(124,92,255,.12)}
+.bell-item span{min-width:0;overflow-wrap:anywhere}
+.bell-item small{flex:none;color:var(--mute);font-size:11px;padding-top:1px}
+.bell-item::before{content:"";flex:none;width:8px;height:8px;margin-top:5px;border-radius:50%;background:var(--acc)}
+.bell-mail::before{background:var(--acc2)}
+.bell-empty{padding:18px 12px;color:var(--mute);text-align:center;font-size:13px}
+.bell-foot{display:flex;justify-content:space-between;padding:9px 12px;font-size:12px;background:rgba(255,255,255,.02)}

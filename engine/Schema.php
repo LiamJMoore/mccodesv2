@@ -81,6 +81,17 @@ const MCC_SCHEMA_STEPS = [
               `qty` INT NOT NULL,
               PRIMARY KEY (`recipe`, `item`)
           ) ENGINE=InnoDB"],
+    // 6: player API keys (only a fingerprint of each key is kept)
+    6 => ["CREATE TABLE IF NOT EXISTS `v3_api_keys` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `key_hash` CHAR(64) NOT NULL,
+              `created` INT NOT NULL,
+              `last_used` INT NOT NULL DEFAULT 0,
+              `calls` BIGINT NOT NULL DEFAULT 0,
+              `window_start` INT NOT NULL DEFAULT 0,
+              `window_calls` INT NOT NULL DEFAULT 0,
+              UNIQUE KEY `by_key` (`key_hash`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

@@ -68,7 +68,7 @@ $mcc_daily = daily_status((int)$ir['userid'], (int)$ir['level']);
 echo $mcc_daily['claimed']
         ? "<a href='daily.php'>Daily Reward</a><br />"
         : "<a href='daily.php' style='font-weight: bold;'>Daily Reward (claim)</a><br />";
-echo "<a href='missions.php'>Missions</a><br /><a href='achievements.php'>Achievements</a><br /><a href='bounties.php'>Hitlist</a><br /><a href='craft.php'>Workshop</a><br />";
+echo "<a href='missions.php'>Missions</a><br /><a href='achievements.php'>Achievements</a><br /><a href='bounties.php'>Hitlist</a><br /><a href='craft.php'>Workshop</a><br /><a href='record.php'>Record &amp; Leaderboards</a><br />";
 echo "<a href='forums.php'>Forums</a><br />";
 echo ($ir['new_announcements'])
         ? '<a href="announcements.php" style="font-weight: bold;">Announcements ('

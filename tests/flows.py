@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import threading
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -773,6 +774,83 @@ def gangs(srv):
     sql("UPDATE users SET gang = 0, money = 100, crystals = 10, new_events = 0")
 
 
+def api(srv):
+    print("Notifications bell and the player API")
+    import json
+    for t in ("events", "mail", "v3_api_keys", "v3_progress", "v3_achievements"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET new_events = 0, new_mail = 0")
+
+    def call(path, key=None, sess=None):
+        req = urllib.request.Request(srv.base + path, headers={"X-Api-Key": key} if key else {})
+        try:
+            r = (sess.open if sess else urllib.request.urlopen)(req, timeout=30)
+            return r.status, r.headers, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            return e.code, e.headers, json.loads(e.read().decode("utf-8"))
+
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/explore.php")
+    check("id='mcc-bell'" in body and "Nothing new" in body and "js/notify.js" in body, "every game page carries the bell, empty when nothing is waiting")
+    sql("INSERT INTO events (evUSER, evTIME, evREAD, evTEXT) VALUES (2, UNIX_TIMESTAMP(), 0, '<a href=\\'viewuser.php?u=3\\'>player2</a> sent you a test event')")
+    sql("UPDATE users SET new_events = 1 WHERE userid = 2")
+    _, _, body = s.get("/explore.php")
+    check(">1</b>" in body and "player2 sent you a test event" in body, "an unread event shows in the bell with its count")
+    code, headers, j = call("/api.php?do=notifications", sess=s)
+    check(code == 200 and j["ok"] and j["data"]["total"] == 1 and j["data"]["items"][0]["text"] == "player2 sent you a test event" and "application/json" in headers.get("Content-Type", ""),
+          "the page's own script can fetch the same list as JSON", j)
+    s.get("/events.php")
+    code, _, j = call("/api.php?do=notifications", sess=s)
+    check(j["data"]["total"] == 0, "reading the events page clears the bell")
+    code, _, j = call("/api.php?do=notifications")
+    check(code == 401 and j["ok"] is False, "notifications are refused without a login")
+    code, _, j = call("/api.php?do=me")
+    check(code == 401, "do=me is refused without a key")
+    code, _, j = call("/api.php?do=game")
+    check(code == 200 and j["data"]["players"] == 4, "do=game needs no key")
+    code, _, j = call("/api.php?do=top&by=level&limit=3")
+    check(code == 200 and len(j["data"]["top"]) == 3 and j["data"]["top"][0]["rank"] == 1, "do=top needs no key")
+    code, _, j = call("/api.php")
+    check(code == 400 and "do=" in j["error"], "a request that asks for nothing is told what it can ask for")
+    # make a key through the page
+    (_, _, body), _ = s.form("/apikey.php", {"do": "create"})
+    key = re.search(r"value='([0-9a-f]{40})'", body)
+    check(key is not None and "shown once" in body, "a player can create a key, shown once")
+    key = key.group(1)
+    _, _, body = s.get("/apikey.php")
+    check(key not in body and "Replace with a new key" in body, "the key is not shown again")
+    code, _, j = call("/api.php?do=me", key=key)
+    check(code == 200 and j["data"]["name"] == "player1" and j["data"]["money"] == balances(2)["money"], "do=me with the key gives the player's own data", j)
+    code, _, j = call(f"/api.php?do=me&key={key}")
+    check(code == 200 and j["data"]["id"] == 2, "the key also works in the address")
+    code, _, j = call("/api.php?do=player&id=3", key=key)
+    check(code == 200 and j["data"]["name"] == "player2" and "money" not in j["data"], "do=player gives another player's public details only")
+    code, _, j = call("/api.php?do=player&id=99999", key=key)
+    check(code == 404, "do=player for nobody is a 404")
+    code, _, j = call("/api.php?do=notifications", key=key)
+    check(code == 403, "a key cannot read the notifications list")
+    code, _, j = call("/api.php?do=me", key="0" * 40)
+    check(code == 401, "a wrong key is refused")
+    before = balances(2)
+    anon = Session(srv.base)
+    sent = [anon.get(f"{path}{'&' if '?' in path else '?'}key={key}")[0] for path in ("/sendcash.php?ID=3", "/bank.php", "/daily.php")]
+    check(balances(2) == before and sent == [302, 302, 302], "a key does not log you in: game pages send it to the login page", sent)
+    codes = [call("/api.php?do=game", key=key)[0] for _ in range(65)]
+    check(codes.count(200) <= 60 and 429 in codes, "after 60 requests in a minute a key is told to slow down", (codes.count(200), codes.count(429)))
+    (_, _, body), _ = s.form("/apikey.php", {"do": "revoke"})
+    sql("UPDATE v3_api_keys SET window_calls = 0")
+    code, _, j = call("/api.php?do=me", key=key)
+    check("Key revoked" in body and code == 401, "a revoked key stops working")
+    _, _, body = s.get("/record.php")
+    check("Your Record" in body and "Leaderboards" in body, "the record page shows your counters and the leaderboards")
+    _, _, body = s.get("/record.php?u=3&by=crimes")
+    check("Record of player2" in body, "you can look at another player's record")
+    for t in ("events", "mail", "v3_api_keys", "v3_progress", "v3_achievements"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET new_events = 0, new_mail = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -794,6 +872,7 @@ def main():
         items(srv)
         crafting(srv)
         gangs(srv)
+        api(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

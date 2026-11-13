@@ -8,16 +8,16 @@ declare(strict_types=1);
  * is worked out from the player and the date, so it is the same however many times the page is opened.
  *
  * 'stat' is a counter from engine/Progress.php; 'targets' are the easy, medium and hard versions; 'text' has {n}
- * where the number goes. Add a line to add a mission.
+ * where the number goes and 'one' is the wording when the number is 1. Add a line to add a mission.
  */
 const MCC_MISSIONS = [
-    'crimes' => ['stat' => 'crimes', 'targets' => [3, 6, 12], 'text' => 'Commit {n} successful crimes'],
-    'gym' => ['stat' => 'gym', 'targets' => [10, 25, 50], 'text' => 'Train {n} times in the gym'],
-    'shop' => ['stat' => 'shop_buy', 'targets' => [1, 3, 5], 'text' => 'Buy {n} items from a shop'],
-    'fights' => ['stat' => 'fights_won', 'targets' => [1, 2, 4], 'text' => 'Win {n} fights'],
-    'daily' => ['stat' => 'daily', 'targets' => [1, 1, 1], 'text' => 'Claim your daily reward'],
-    'crafted' => ['stat' => 'crafted', 'targets' => [1, 2, 3], 'text' => 'Craft {n} items'],
-    'bounties' => ['stat' => 'bounties', 'targets' => [1, 1, 2], 'text' => 'Collect {n} bounties'],
+    'crimes' => ['stat' => 'crimes', 'targets' => [3, 6, 12], 'text' => 'Commit {n} successful crimes', 'one' => 'Commit a successful crime'],
+    'gym' => ['stat' => 'gym', 'targets' => [10, 25, 50], 'text' => 'Train {n} times in the gym', 'one' => 'Train once in the gym'],
+    'shop' => ['stat' => 'shop_buy', 'targets' => [1, 3, 5], 'text' => 'Buy {n} items from a shop', 'one' => 'Buy an item from a shop'],
+    'fights' => ['stat' => 'fights_won', 'targets' => [1, 2, 4], 'text' => 'Win {n} fights', 'one' => 'Win a fight'],
+    'daily' => ['stat' => 'daily', 'targets' => [1, 1, 1], 'text' => 'Claim your daily reward', 'one' => 'Claim your daily reward'],
+    'crafted' => ['stat' => 'crafted', 'targets' => [1, 2, 3], 'text' => 'Craft {n} items', 'one' => 'Craft an item'],
+    'bounties' => ['stat' => 'bounties', 'targets' => [1, 1, 2], 'text' => 'Collect {n} bounties', 'one' => 'Collect a bounty'],
 ];
 const MCC_MISSION_CASH = [400, 900, 2000];          // easy, medium, hard; multiplied by the player's level (up to 50)
 const MCC_MISSION_ALL_CRYSTALS = 3;                 // for finishing all three in a day
@@ -39,8 +39,10 @@ function missions_pool(): array
 function mission_text(array $m): string
 {
     $def = MCC_MISSIONS[$m['mission']] ?? null;
-    $text = str_replace('{n}', number_format((int)$m['target']), $def['text'] ?? 'Mission');
-    return (int)$m['target'] === 1 ? preg_replace('/\b1 (\w+)s\b/', 'a $1', str_replace(['1 successful crimes', '1 times'], ['a successful crime', 'once'], $text)) : $text;
+    if ($def === null) {
+        return 'Mission';
+    }
+    return (int)$m['target'] === 1 ? $def['one'] : str_replace('{n}', number_format((int)$m['target']), $def['text']);
 }
 
 /**
