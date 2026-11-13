@@ -922,6 +922,34 @@ def forums(srv):
         sql(f"DELETE FROM {t}")
 
 
+def equipping(srv):
+    print("Equipping")
+    sql("DELETE FROM inventory")
+    sql("UPDATE users SET equip_primary = 2, equip_secondary = 0, equip_armor = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 10, "/unequip.php?type=equip_primary")
+    check(sum("successfully unequipped" in x for x in out) == 1 and inv(2, 2) == 1 and one("SELECT equip_primary FROM users WHERE userid = 2") == "0",
+          "ten logins unequipping one weapon at once: one weapon comes back (v2: ten)", (sum("successfully unequipped" in x for x in out), inv(2, 2)))
+    sql("UPDATE users SET equip_armor = 3 WHERE userid = 2")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (3, 2, 1)")
+    # (item 3 is armour; equip a second jacket over the first: the old one must come back exactly once)
+    sql("UPDATE items SET armor = 10 WHERE itmid = 4")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (4, 2, 1)")
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 2 AND inv_itemid = 4")
+    out = many(srv, "player1", "playerpass1", 10, f"/equip_armor.php?ID={inv_id}", {"type": "equip_armor"})
+    got = (one("SELECT equip_armor FROM users WHERE userid = 2"), inv(2, 3), inv(2, 4))
+    check(sum("equipped successfully" in x for x in out) == 1 and got == ("4", 2, 0), "ten logins swapping armour at once: the old piece comes back once and the new one is used once", (sum("equipped successfully" in x for x in out), got))
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 2 AND inv_itemid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get(f"/equip_weapon.php?ID={inv_id}", {"type": "equip_secondary"})
+    check("equipped successfully" in body and one("SELECT equip_secondary FROM users WHERE userid = 2") == "2" and inv(2, 2) == 0, "a weapon can be equipped to the second slot")
+    _, _, body = s.get(f"/equip_weapon.php?ID={inv_id}", {"type": "userpass"})
+    check("equipped successfully" not in body, "a slot that is not a slot is refused")
+    sql("DELETE FROM inventory")
+    sql("UPDATE items SET armor = 0 WHERE itmid = 4")
+    sql("UPDATE users SET equip_primary = 0, equip_secondary = 0, equip_armor = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -946,6 +974,7 @@ def main():
         api(srv)
         dashboard(srv)
         forums(srv)
+        equipping(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

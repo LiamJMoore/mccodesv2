@@ -60,7 +60,7 @@ test that sends the same request from several logins at the same moment:
 | Fights | `attack.php`, `attackwon.php`, `attackbeat.php`, `attacktake.php`, `attacklost.php` | One loser mugged many times; the "you lost" page open to anyone |
 | Casino | `slotsmachine.php`, `roulette.php`, `lucky.php` | Unlimited plays on one stake |
 | Town | `estate.php`, `monorail.php`, `jailbail.php`, `jailbust.php` | One house sold many times |
-| Items | `itemuse.php`, `itemsend.php` | One item used or sent many times |
+| Items | `itemuse.php`, `itemsend.php`, `equip_weapon.php`, `equip_armor.php`, `unequip.php` | One item used, sent or unequipped many times |
 | Gangs | `creategang.php`, `yourgang.php` (donate, vault, capacity, mass payment) | The vault paid out more than it held |
 | Timed updates | `crons/cronless_crons.php`, `check_level()` | Energy and brave regenerated, and levels gained, once per simultaneous page load |
 
@@ -113,7 +113,7 @@ Rewards, targets, fees and limits are constants at the top of each mod file. Cha
 
 ## Still on v2 code
 
-These run on the v3 start-up path but their own code is unchanged: jobs and education, equipping,
+These run on the v3 start-up path but their own code is unchanged: jobs and education,
 mail, the newspaper, polls, donator pages, and most staff pages.
 
 ## Running it locally
