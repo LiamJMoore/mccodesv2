@@ -60,9 +60,9 @@ function daily_claim(int $userid, int $level = 1, ?string $today = null): ?array
         $db->run('INSERT IGNORE INTO `v3_daily` (`userid`, `last_claim`, `streak`, `best`, `claims`) VALUES (?, ?, 0, 0, 0)', [$userid, '2000-01-01']);
         $changed = $db->exec(
             'UPDATE `v3_daily`
-             SET `streak` = IF(`last_claim` = ?, `streak` + 1, 1), `best` = GREATEST(`best`, IF(`last_claim` = ?, `streak` + 1, 1)),
+             SET `streak` = IF(`last_claim` = ?, `streak` + 1, 1), `best` = GREATEST(`best`, `streak`),   /* MySQL sets left to right: `streak` here is already the new value */
                  `claims` = `claims` + 1, `last_claim` = ?
-             WHERE `userid` = ? AND `last_claim` < ?', [$yesterday, $yesterday, $today, $userid, $today]);
+             WHERE `userid` = ? AND `last_claim` < ?', [$yesterday, $today, $userid, $today]);
         if ($changed !== 1) {
             return false;
         }
