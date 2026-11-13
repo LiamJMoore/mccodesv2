@@ -46,27 +46,70 @@ Three rules:
 2. **Money moves through `wallet_*`.** Never check a balance in PHP and then change it in a second statement.
 3. **Anything that changes the game is a POST with a token** (`request_csrf_html` on the form, `verify_csrf_code` before acting).
 
-## Pages on v3 so far
+## Pages on v3
 
-| Page | Bound queries | Guarded money | Form token on every change |
+Every page starts through `engine/boot.php`. These pages have also been moved onto the safe functions, each with a
+test that sends the same request from several logins at the same moment:
+
+| Area | Pages | What v2 allowed |
+|---|---|---|
+| Banks | `bank.php`, `cyberbank.php` | One balance withdrawn many times; a negative bank balance |
+| Sending | `sendcash.php`, `sendcrys.php`, `sendbank.php`, `sendcyber.php` | The same money sent many times |
+| Shops and markets | `shops.php`, `itembuy.php`, `itemsell.php`, `imadd.php`, `itemmarket.php`, `cmarket.php` | One item sold twice; one listing bought twice |
+| Gym, crimes, temple | `gym.php`, `docrime.php`, `crystaltemple.php` | Many trains or crimes on one bar of energy or brave |
+| Fights | `attack.php`, `attackwon.php`, `attackbeat.php`, `attacktake.php`, `attacklost.php` | One loser mugged many times; the "you lost" page open to anyone |
+| Casino | `slotsmachine.php`, `roulette.php`, `lucky.php` | Unlimited plays on one stake |
+| Town | `estate.php`, `monorail.php`, `jailbail.php`, `jailbust.php` | One house sold many times |
+| Items | `itemuse.php`, `itemsend.php` | One item used or sent many times |
+| Gangs | `creategang.php`, `yourgang.php` (donate, vault, capacity, mass payment) | The vault paid out more than it held |
+| Timed updates | `crons/cronless_crons.php`, `check_level()` | Energy and brave regenerated, and levels gained, once per simultaneous page load |
+
+Other fixes made on the way:
+
+- Crime success formulas were run through PHP's `eval()`. `engine/Formula.php` works them out as arithmetic only, and
+  the staff form refuses anything else.
+- Challenge bots never paid their prize (the test was the wrong way round). They now pay the first time.
+- The Cyber Bank's withdrawal fee was described but never charged. It is now charged, as the page says.
+- The staff "fire cron" form had no anti-forgery token.
+- The staff index loaded a page from mccodes.com on every visit. It no longer does.
+- An item can only change a listed set of player columns, and adds to them rather than overwriting.
+
+## The database upgrades itself
+
+`engine/Schema.php` holds numbered steps. The start-up path compares the game's step (in the `settings` table) with
+the latest and applies what is missing, once, under a lock. Nobody runs `.sql` files. To change the database, add a
+step; never edit a released one.
+
+## New features
+
+Each lives in `engine/mods/`, has its own page, and is linked from the menu.
+
+| Feature | Page | File | In short |
 |---|---|---|---|
-| start-up (`engine/boot.php`) | yes | | |
-| `bank.php` | yes | yes | yes |
-| `cyberbank.php` | partly | yes | yes |
-| `sendcash.php`, `sendcrys.php`, `sendbank.php`, `sendcyber.php` | partly | yes | yes (as v2) |
+| Daily reward | `daily.php` | `Daily.php` | Once a day; grows over a week; crystals on day 7; a bonus on day 30; resets if a day is missed |
+| Achievements | `achievements.php` | `Achievements.php` | 30 badges, each unlocked and paid once. Add one by adding a line |
+| Daily missions | `missions.php` | `Missions.php` | Three a day per player, a bonus for all three |
+| Bounties | `bounties.php` | `Bounties.php` | Money on a player's head, paid to whoever mugs or hospitalises them. 10% fee leaves the game |
+| Crafting | `craft.php`, `staff_crafting.php` | `Crafting.php` | Staff define recipes; a craft is all or nothing |
+| Notifications | the bell in the header | `Notify.php`, `js/notify.js` | Unread events and mail, refreshed every half minute |
+| Player API | `api.php`, `apikey.php` | `Api.php` | Read-only JSON. Keys are stored as fingerprints and limited to 60 requests a minute |
+| Record | `record.php` | `Api.php` | A player's counters with ranks, fight record, nine leaderboards |
+| Staff dashboard | `staff_dashboard.php` | `Dashboard.php` | Totals, a books-balance check, 30-day trends, a watchlist, system health |
 
-Every other page still runs its v2 code on the v3 start-up, and still passes the smoke test.
+Two small systems sit under these:
 
-One behaviour changed on purpose: the Cyber Bank's withdrawal fee. v2 described a 7.5% fee but took only the after-fee
-amount out of the bank, so the fee stayed in the player's account and was never charged. v3 takes the whole amount
-out and pays the rest, as the page says.
+- `engine/Progress.php` counts what players do (`progress_add($userid, 'crimes')`). Achievements and missions listen
+  to it, so a page reports what happened and never needs to know which rewards exist.
+- `engine/Combat.php` finishes a won fight in one locked step and tells listeners (`fight_listen()`), which is how
+  bounties are collected.
 
-## Still to move (in the order that matters)
+Rewards, targets, fees and limits are constants at the top of each mod file. Change the number, save the file.
 
-1. Everything else that moves money or items: shops, item market, crystal market, gym, crimes, attacking, gangs' vaults, estate, casino pages.
-2. Messaging and forums (stored text printed back to other players).
-3. Staff pages.
-4. The crons.
+## Still on v2 code
+
+These run on the v3 start-up path but their own code is unchanged: jobs and education, mail and forums, equipping,
+the newspaper, polls, donator pages, and most staff pages. Messaging and forums are next, because they print one
+player's text to another.
 
 ## Running it locally
 
@@ -75,7 +118,7 @@ out and pays the rest, as the page says.
 php tools/dev/setup.php --host=127.0.0.1 --user=mcc --pass=mccpass --db=mcctest --force
 php tests/engine.php          # the engine's own checks
 python3 tools/dev/smoke.py    # every page loads for a player and an admin with no PHP error
-python3 tests/flows.py        # banks and sending, end to end, including several logins at once
+python3 tests/flows.py        # the real pages, end to end, including several logins at once
 ```
 
 `setup.php` wipes the database it is given and refuses one that already has players unless `--force` is passed.
