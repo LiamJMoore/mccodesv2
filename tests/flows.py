@@ -167,8 +167,124 @@ def sending(srv):
     check(balances(2)["bank"] == 500 and balances(3)["bank"] == -1, "sendbank: money is not sent into a bank account the receiver has not opened", body[-200:])
 
 
+def inv(uid, item):
+    r = sql(f"SELECT COALESCE(SUM(inv_qty), 0) FROM inventory WHERE inv_userid = {uid} AND inv_itemid = {item}")
+    return int(r[0][0])
+
+
+def shop(srv):
+    import re
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    sql("DELETE FROM inventory")
+    sql("UPDATE users SET money = 2500, location = 1 WHERE userid = 2")
+    (_, _, body), tokens = s.form("/itembuy.php?ID=2", {"qty": "2"}, token_from="/shops.php?shop=1")
+    check("You bought 2 Baseball Bat" in body and balances()["money"] == 500 and inv(2, 2) == 2, "the shop: two bats at $1,000 take $2,000 and put two bats in the inventory", (body[-200:], balances(), tokens[:1]))
+    (_, _, body), _ = s.form("/itembuy.php?ID=2", {"qty": "1"}, token_from="/shops.php?shop=1")
+    check("enough money" in body and balances()["money"] == 500 and inv(2, 2) == 2, "buying what you cannot afford is refused: no money taken, no item given")
+    code, _, body = s.get("/itembuy.php?ID=1", {"qty": "1"})
+    check(balances()["money"] == 500 and inv(2, 1) == 0, "a purchase sent without the shop page's token buys nothing")
+    (_, _, body), _ = s.form("/itembuy.php?ID=4", {"qty": "1"}, token_from="/shops.php?shop=1")
+    (_, _, body2), _ = s.form("/itembuy.php?ID=5", {"qty": "1"}, token_from="/shops.php?shop=1")
+    check(balances()["money"] == 500 and "other cities" in body and "can\'t be bought" in body2.replace("&#039;", "'").replace("'", "\'"), "an item in another city's shop, or one that is not for sale, cannot be bought and costs nothing", (body[-120:], body2[-120:]))
+    sql("UPDATE users SET money = 1000 WHERE userid = 2")
+
+    def buy(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get("/shops.php?shop=1")
+            return re.search(r"name='verf' value='([^']+)'", page).group(1)
+        _, _, body = sess.get("/itembuy.php?ID=2", {"qty": "1", "verf": prepared})
+        return "You bought" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, buy)
+    check(sum(out) == 1 and balances()["money"] == 0 and inv(2, 2) == 3, "ten logins buying a $1,000 bat with $1,000 at once: one bat is bought and the money never goes below zero", (sum(out), balances()["money"], inv(2, 2)))
+
+    # selling back
+    row = sql("SELECT inv_id FROM inventory WHERE inv_userid = 2 AND inv_itemid = 2")[0][0]
+    (_, _, body), _ = s.form(f"/itemsell.php?ID={row}", {"qty": "1"}, token_from=f"/itemsell.php?ID={row}")
+    check("You sold 1" in body and balances()["money"] == 500 and inv(2, 2) == 2, "selling one bat back pays its $500 sell price and removes one", (body[-150:], balances()["money"], inv(2, 2)))
+    (_, _, body), _ = s.form(f"/itemsell.php?ID={row}", {"qty": "3"}, token_from=f"/itemsell.php?ID={row}")
+    check("more than you have" in body and balances()["money"] == 500 and inv(2, 2) == 2, "selling more than you hold is refused")
+
+    def sell(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get(f"/itemsell.php?ID={row}")
+            return re.search(r"name='verf' value='([^']+)'", page).group(1)
+        _, _, body = sess.get(f"/itemsell.php?ID={row}", {"qty": "2", "verf": prepared})
+        return "You sold" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, sell)
+    check(sum(out) == 1 and balances()["money"] == 1500 and inv(2, 2) == 0, "ten logins selling the same two bats at once: they are sold once", (sum(out), balances()["money"], inv(2, 2)))
+
+
+def markets(srv):
+    import re
+    seller, buyer = Session(srv.base), Session(srv.base)
+    seller.login("player1", "playerpass1")
+    buyer.login("player2", "playerpass2")
+    sql("DELETE FROM inventory; DELETE FROM itemmarket; DELETE FROM crystalmarket")
+    sql("UPDATE users SET money = 0, crystals = 0 WHERE userid IN (2, 3)")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (2, 2, 3)")
+    row = sql("SELECT inv_id FROM inventory WHERE inv_userid = 2")[0][0]
+    (_, _, body), _ = seller.form(f"/imadd.php?ID={row}", {"price": "400", "QTY": "3", "currency": "money"}, token_from=f"/imadd.php?ID={row}")
+    listing = sql("SELECT imID, imQTY, imPRICE FROM itemmarket WHERE imADDER = 2")
+    check(len(listing) == 1 and listing[0][1:] == ["3", "400"] and inv(2, 2) == 0, "item market: listing three bats takes them out of the seller's inventory", (listing, body[-150:]))
+    lid = listing[0][0]
+    sql("UPDATE users SET money = 1000 WHERE userid = 3")
+    (_, _, body), _ = buyer.form(f"/itemmarket.php?action=buy&ID={lid}", {"QTY": "2"}, token_from=f"/itemmarket.php?action=buy&ID={lid}")
+    check(balances(3)["money"] == 200 and balances(2)["money"] == 800 and inv(3, 2) == 2 and sql(f"SELECT imQTY FROM itemmarket WHERE imID = {lid}") == [["1"]],
+          "buying two of the three: $800 goes from buyer to seller, two bats arrive, one stays listed", (balances(3), balances(2), inv(3, 2), body[-200:]))
+    (_, _, body), _ = buyer.form(f"/itemmarket.php?action=buy&ID={lid}", {"QTY": "1"}, token_from=f"/itemmarket.php?action=buy&ID={lid}")
+    check(balances(3)["money"] == 200 and inv(3, 2) == 2 and sql(f"SELECT imQTY FROM itemmarket WHERE imID = {lid}") == [["1"]], "a buyer who cannot afford it gets nothing and the listing stays")
+    sql("UPDATE users SET money = 4000 WHERE userid = 3")
+
+    def buy(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get(f"/itemmarket.php?action=buy&ID={lid}")
+            return re.search(r"name=['\"]verf['\"] value=['\"]([^'\"]+)", page).group(1)
+        _, _, body = sess.get(f"/itemmarket.php?action=buy&ID={lid}", {"QTY": "1", "verf": prepared})
+        return "bought" in body.lower() and "error" not in body.lower()
+    out = at_once(srv.base, "player2", "playerpass2", 10, buy)
+    check(inv(3, 2) == 3 and balances(3)["money"] == 3600 and balances(2)["money"] == 1200 and sql(f"SELECT COUNT(*) FROM itemmarket WHERE imID = {lid}") == [["0"]],
+          "ten logins buying the last bat at once: it is bought once, paid for once, and the listing is gone", (sum(out), inv(3, 2), balances(3)["money"], balances(2)["money"]))
+
+    # the crystal market
+    sql("UPDATE users SET crystals = 50, money = 0 WHERE userid = 2")
+    sql("UPDATE users SET crystals = 0, money = 10000 WHERE userid = 3")
+    seller.get("/cmarket.php?action=add", {"amnt": "40", "price": "100"})
+    listing = sql("SELECT cmID, cmQTY, cmPRICE FROM crystalmarket WHERE cmADDER = 2")
+    check(len(listing) == 1 and listing[0][1:] == ["40", "100"] and balances(2)["crystals"] == 10, "crystal market: listing 40 crystals takes them from the seller", listing)
+    seller.get("/cmarket.php?action=add", {"amnt": "11", "price": "100"})
+    check(balances(2)["crystals"] == 10 and sql("SELECT SUM(cmQTY) FROM crystalmarket") == [["40"]], "listing more crystals than you hold is refused")
+    cid = listing[0][0]
+    buyer.get(f"/cmarket.php?action=buy&ID={cid}", {"QTY": "10"})
+    check(balances(3) == dict(balances(3), money=9000, crystals=10) and balances(2)["money"] == 1000 and sql(f"SELECT cmQTY FROM crystalmarket WHERE cmID = {cid}") == [["30"]],
+          "buying 10 at $100: $1,000 moves to the seller, 10 crystals arrive, 30 stay listed", (balances(3), balances(2)))
+
+    def cbuy(sess, prepare=False, prepared=None):
+        if prepare:
+            return None
+        _, _, body = sess.get(f"/cmarket.php?action=buy&ID={cid}", {"QTY": "30"})
+        return "You bought" in body
+    out = at_once(srv.base, "player2", "playerpass2", 10, cbuy)
+    total_crystals = balances(2)["crystals"] + balances(3)["crystals"] + int(sql("SELECT COALESCE(SUM(cmQTY), 0) FROM crystalmarket")[0][0])
+    check(balances(3)["crystals"] == 40 and balances(3)["money"] == 6000 and balances(2)["money"] == 4000 and total_crystals == 50,
+          "ten logins buying the last 30 crystals at once: bought once, and no crystals are made or lost", (sum(out), balances(3), balances(2), total_crystals))
+    sql("UPDATE users SET crystals = 20 WHERE userid = 2")
+    seller.get("/cmarket.php?action=add", {"amnt": "20", "price": "5"})
+    cid2 = sql("SELECT cmID FROM crystalmarket WHERE cmADDER = 2")[0][0]
+
+    def cremove(sess, prepare=False, prepared=None):
+        if prepare:
+            return None
+        _, _, body = sess.get(f"/cmarket.php?action=remove&ID={cid2}")
+        return "removed from market" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, cremove)
+    check(balances(2)["crystals"] == 20 and sql("SELECT COUNT(*) FROM crystalmarket") == [["0"]], "ten logins taking the same listing back at once: the 20 crystals come back once", (sum(out), balances(2)["crystals"]))
+
+
 def main():
     with Server(8770) as srv:
+        shop(srv)
+        markets(srv)
         bank(srv)
         cyberbank(srv)
         sending(srv)

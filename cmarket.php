@@ -123,10 +123,16 @@ function crystal_remove(): void
     }
     $r = $db->fetch_row($q);
     $db->free_result($q);
-    $db->query(
-            'UPDATE `users` SET `crystals` = `crystals` + ' . $r['cmQTY']
-                    . ' WHERE `userid` = ' . $userid);
-    $db->query('DELETE FROM `crystalmarket` WHERE `cmID` = ' . $_GET['ID']);
+    // engine v3: the listing is claimed first, so its crystals can only come back once
+    if (!listing_claim('crystalmarket', (int)$_GET['ID'], (int)$r['cmQTY']))
+    {
+        echo "Error, this listing has just changed. Nothing was done.
+	<br />
+	<a href='cmarket.php'>&gt; Back</a>";
+        $h->endpage();
+        exit;
+    }
+    wallet_give($userid, 'crystals', (int)$r['cmQTY']);
     echo "
 	Crystals removed from market!
 	<br />
@@ -191,25 +197,20 @@ function crystal_buy(): void
             $h->endpage();
             exit;
         }
-        $db->query(
-                'UPDATE `users` SET `crystals` = `crystals` + '
-                        . $_POST['QTY'] . ', `money` = `money` - ' . $cprice
-                        . ' WHERE `userid` = ' . $userid);
-        if ($_POST['QTY'] < $r['cmQTY'])
+        // engine v3: the listing, the payment and the crystals succeed together, or nothing happens
+        $cm_id = (int)$_GET['ID']; $cm_qty = (int)$_POST['QTY']; $cm_seller = (int)$r['cmADDER']; $cm_price = (int)$cprice;
+        if ($cm_seller === $userid || !$db->attempt(fn () => listing_claim('crystalmarket', $cm_id, $cm_qty)
+                && ($cm_price === 0 || wallet_send($userid, $cm_seller, 'money', $cm_price))
+                && wallet_give($userid, 'crystals', $cm_qty)))
         {
-            $db->query(
-                    'UPDATE `crystalmarket` SET `cmQTY` = `cmQTY` - '
-                            . $_POST['QTY'] . ' WHERE `cmID` = ' . $_GET['ID']);
+            echo '
+	Error, these crystals have just been bought or changed, or you no longer have the funds. Nothing was taken.
+	<br />
+	<a href="cmarket.php">&gt; Back</a>
+	';
+            $h->endpage();
+            exit;
         }
-        elseif ($_POST['QTY'] == $r['cmQTY'])
-        {
-            $db->query(
-                    'DELETE FROM `crystalmarket` WHERE `cmID` = '
-                            . $_GET['ID']);
-        }
-        $db->query(
-                'UPDATE `users` SET `money` = `money` + ' . $cprice
-                        . ' WHERE `userid` = ' . $r['cmADDER']);
 
         event_add($r['cmADDER'],
             "<a href='viewuser.php?u=$userid'>{$ir['username']}</a> bought of {$_POST['QTY']} your crystals from the market for "
@@ -257,7 +258,7 @@ function crystal_add(): void
                     ? abs(intval($_POST['price'])) : '';
     if (!empty($_POST['amnt']) && !empty($_POST['price']))
     {
-        if ($_POST['amnt'] > $ir['crystals'])
+        if (!wallet_take($userid, 'crystals', (int)$_POST['amnt']))     // engine v3: taken only if held, before they are listed
         {
             echo 'You are trying to add more crystals to the market than you have.';
             $h->endpage();
@@ -288,9 +289,6 @@ function crystal_add(): void
                             . $_POST['amnt'] . ', ' . $userid . ', ' . $tp
                             . ')');
         }
-        $db->query(
-                'UPDATE `users` SET `crystals` = `crystals` - '
-                        . $_POST['amnt'] . ' WHERE userid = ' . $userid);
         echo '
 	Crystals added to market!
 	<br />

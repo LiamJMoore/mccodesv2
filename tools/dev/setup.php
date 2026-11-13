@@ -78,5 +78,16 @@ foreach (['game_name' => 'MCCodes v3 dev', 'game_owner' => 'Dev', 'paypal' => 'd
     $st->bind_param('ss', $k, $v);
     $st->execute();
 }
+// A small world to play in, so a new game is not empty: a shop with a few things in it.
+if ((int)$my->query('SELECT COUNT(*) FROM `items`')->fetch_row()[0] === 0) {
+    $my->query("INSERT INTO `itemtypes` (`itmtypeid`, `itmtypename`) VALUES (1, 'Food'), (2, 'Weapon'), (3, 'Armour')");
+    $my->query("INSERT INTO `items` (`itmid`, `itmtype`, `itmname`, `itmdesc`, `itmbuyprice`, `itmsellprice`, `itmbuyable`, `effect1_on`, `effect1`, `effect2_on`, `effect2`, `effect3_on`, `effect3`, `weapon`, `armor`) VALUES
+        (1, 1, 'Sandwich', 'Restores a little energy.', 100, 50, 1, 0, '', 0, '', 0, '', 0, 0),
+        (2, 2, 'Baseball Bat', 'A first weapon.', 1000, 500, 1, 0, '', 0, '', 0, '', 10, 0),
+        (3, 3, 'Leather Jacket', 'A first piece of armour.', 1500, 750, 1, 0, '', 0, '', 0, '', 0, 10),
+        (4, 1, 'Rare Trophy', 'Cannot be bought in a shop.', 0, 5000, 0, 0, '', 0, '', 0, '', 0, 0)");
+    $my->query("INSERT INTO `shops` (`shopID`, `shopLOCATION`, `shopNAME`, `shopDESCRIPTION`) VALUES (1, 1, 'Corner Shop', 'Everything a newcomer needs.'), (2, 2, 'Far Shop', 'In another city.')");
+    $my->query("INSERT INTO `shopitems` (`sitemID`, `sitemSHOP`, `sitemITEMID`) VALUES (1, 1, 1), (2, 1, 2), (3, 1, 3), (4, 2, 1), (5, 1, 4)");
+}
 echo "Installed a fresh game in {$o['db']}: admin (password adminpass1) and {$players} players (player1 / playerpass1, ...).\n";
 echo "config.php written. Cron code: {$code}\n";

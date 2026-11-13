@@ -58,7 +58,7 @@ if ($_POST['price'] && $_POST['QTY'] && $_GET['ID'])
     {
         $r = $db->fetch_row($q);
         $db->free_result($q);
-        if ($r['inv_qty'] < $_POST['QTY'])
+        if (!item_take_row($userid, (int)$_GET['ID'], (int)$_POST['QTY']))     // engine v3: the items leave the inventory first, once
         {
             echo 'You do not have enough of this item.';
             $h->endpage();
@@ -92,7 +92,6 @@ if ($_POST['price'] && $_POST['QTY'] && $_GET['ID'])
                      {$_POST['QTY']})");
         }
         $db->free_result($checkq);
-        item_remove($userid, (int) $r['inv_itemid'], $_POST['QTY']);
         $imadd_log =
                 $db->escape(
                         "{$ir['username']} added {$r['itmname']} "

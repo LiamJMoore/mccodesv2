@@ -115,20 +115,46 @@ trait DbPrepared
     /**
      * Run several statements as one: all of them happen, or none do. Use it wherever two rows must change together
      * (money leaving one player and reaching another). The callback's return value is passed back.
+     * One transaction may be started inside another: the inner one becomes a savepoint, so it can be undone
+     * by itself without ending the outer one.
      */
     public function transaction(callable $work): mixed
     {
-        mysqli_begin_transaction($this->connection_id);
+        $depth = $this->tx_depth++;
+        $depth === 0 ? mysqli_begin_transaction($this->connection_id) : mysqli_query($this->connection_id, "SAVEPOINT mcc_sp{$depth}");
         try {
             $out = $work($this);
-            mysqli_commit($this->connection_id);
+            $depth === 0 ? mysqli_commit($this->connection_id) : mysqli_query($this->connection_id, "RELEASE SAVEPOINT mcc_sp{$depth}");
             return $out;
         } catch (Throwable $e) {
-            mysqli_rollback($this->connection_id);
+            $depth === 0 ? mysqli_rollback($this->connection_id) : mysqli_query($this->connection_id, "ROLLBACK TO SAVEPOINT mcc_sp{$depth}");
             throw $e;
+        } finally {
+            $this->tx_depth--;
         }
     }
 
+    /**
+     * Try a set of changes that must all succeed. The callback returns true when every step worked; if it returns
+     * false, everything it did is undone and attempt() returns false.
+     *
+     *     $ok = $db->attempt(fn () => listing_claim('itemmarket', $id, $qty) && wallet_send($buyer, $seller, 'money', $price));
+     */
+    public function attempt(callable $steps): bool
+    {
+        try {
+            return (bool)$this->transaction(function () use ($steps) {
+                if (!$steps($this)) {
+                    throw new DomainException('a step failed');
+                }
+                return true;
+            });
+        } catch (DomainException) {
+            return false;
+        }
+    }
+
+    private int $tx_depth = 0;
     public int|string $prepared_affected = 0;
     public int|string $prepared_insert_id = 0;
 

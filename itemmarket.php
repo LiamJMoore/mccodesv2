@@ -176,10 +176,17 @@ function itemm_remove(): void
         exit;
     }
     $r = $db->fetch_row($q);
+    if (!listing_claim('itemmarket', (int)$_GET['ID'], (int)$r['imQTY']))
+    {
+        echo "Error, this listing has just changed. Nothing was done.
+			<br />
+			&gt; <a href='itemmarket.php'>Back</a>
+			";
+        $h->endpage();
+        exit;
+    }
     item_add($userid, (int) $r['imITEM'], $r['imQTY']);
     $i = ($db->insert_id()) ? $db->insert_id() : 99999;
-    $db->query("DELETE FROM `itemmarket`
-    			WHERE `imID` = {$_GET['ID']}");
     $imr_log =
             $db->escape(
                     "{$ir['username']} removed {$r['itmname']} x {$r['imQTY']}"
@@ -314,31 +321,20 @@ function item_buy(): void
             $h->endpage();
             exit;
         }
+        $im_buyer = $userid; $im_listing = (int)$_GET['ID']; $im_qty = (int)$_POST['QTY']; $im_seller = (int)$r['imADDER'];
+        if (!$db->attempt(fn () => listing_claim('itemmarket', $im_listing, $im_qty)
+                && ($final_price === 0 || wallet_send($im_buyer, $im_seller, $curr, $final_price))))
+        {
+            echo '
+			Error, this listing has just been bought or changed, or you no longer have the funds. Nothing was taken.
+			<br />
+			&gt; <a href="itemmarket.php">Back</a>
+   			';
+            $h->endpage();
+            exit;
+        }
         item_add($userid, (int) $r['imITEM'], $_POST['QTY']);
         $i = ($db->insert_id()) ? $db->insert_id() : 99999;
-        if ($_POST['QTY'] == $r['imQTY'])
-        {
-            $db->query(
-                    "DELETE FROM `itemmarket`
-            			WHERE `imID` = {$_GET['ID']}");
-        }
-        elseif ($_POST['QTY'] < $r['imQTY'])
-        {
-            $db->query(
-                    'UPDATE `itemmarket`
-                     SET `imQTY` = `imQTY` - ' . $_POST['QTY']
-                            . '
-                     WHERE `imID` = ' . $_GET['ID']);
-        }
-
-        $db->query(
-                "UPDATE `users`
-                SET `$curr` = `$curr` - {$final_price}
-                WHERE `userid` = $userid");
-        $db->query(
-                "UPDATE `users`
-                SET `$curr` = `$curr` + {$final_price}
-                WHERE `userid` = {$r['imADDER']}");
         if ($curr == 'money')
         {
             event_add($r['imADDER'],
@@ -573,15 +569,21 @@ function item_gift2(): void
 function send_gift(array $data, string $currency, int $final_price): void
 {
     global $db, $ir, $userid;
+    global $h;
+    $im_listing = (int)$_POST['ID']; $im_qty = (int)$_POST['QTY']; $im_seller = (int)$data['imADDER'];
+    if (!$db->attempt(fn () => listing_claim('itemmarket', $im_listing, $im_qty)
+            && ($final_price === 0 || wallet_send($userid, $im_seller, $currency, $final_price))))
+    {
+        echo "
+		Error, this listing has just been bought or changed, or you no longer have the funds. Nothing was taken.
+		<br />
+		&gt; <a href='itemmarket.php'>Back</a>
+		";
+        $h->endpage();
+        exit;
+    }
     item_add($_POST['user'], (int) $data['imITEM'], $_POST['QTY']);
     $i = ($db->insert_id()) ? $db->insert_id() : 99999;
-    if ($_POST['QTY'] == $data['imQTY']) {
-        $db->query("DELETE FROM `itemmarket` WHERE `imID` = {$_POST['ID']}");
-    } elseif ($_POST['QTY'] < $data['imQTY']) {
-        $db->query('UPDATE `itemmarket` SET `imQTY` = `imQTY` - ' . $_POST['QTY'] . ' WHERE `imID` = ' . $_POST['ID']);
-    }
-    $db->query("UPDATE `users` SET `$currency` = `$currency` - {$final_price} WHERE `userid`= $userid");
-    $db->query("UPDATE `users` SET `$currency` = `$currency` + {$final_price} WHERE `userid` = {$data['imADDER']}");
     $my_name = '<a href="viewuser.php?u='.$userid.'">'.$ir['username'].'</a>';
     $cost = $currency === 'money' ? money_formatter($final_price) : number_format($final_price);
     event_add($data['imADDER'], $my_name." bought your {$data['itmname']} x{$_POST['QTY']} item(s) from the market for " . $cost . '.');

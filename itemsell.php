@@ -44,18 +44,14 @@ if (!empty($_POST['qty']) && !empty($_GET['ID']))
             $h->endpage();
             exit;
         }
-        if ($_POST['qty'] > $r['inv_qty'])
+        if (!item_take_row($userid, (int)$_GET['ID'], (int)$_POST['qty']))     // engine v3: taken only if still held
         {
             echo 'You are trying to sell more than you have!';
         }
         else
         {
             $price = (int)($r['itmsellprice'] * $_POST['qty']);
-            item_remove($userid, (int) $r['itmid'], $_POST['qty']);
-            $db->query(
-                    "UPDATE `users`
-                     SET `money` = `money` + {$price}
-                     WHERE `userid` = $userid");
+            wallet_give($userid, 'money', $price);
             $priceh = money_formatter($price);
             echo 'You sold ' . $_POST['qty'] . ' ' . $r['itmname']
                     . '(s) for ' . $priceh;
