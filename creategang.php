@@ -43,13 +43,22 @@ if (isset($_POST['submit']) && isset($_POST['desc'])
             $db->escape(
                     htmlentities(stripslashes($_POST['desc']), ENT_QUOTES,
                             'ISO-8859-1'));
-    $db->query(
-            "INSERT INTO `gangs`
-                    (`gangNAME`, `gangDESC`, `gangRESPECT`, `gangPRESIDENT`, `gangVICEPRES`, `gangCAPACITY`)
-                     VALUES('$name', '$desc', 100, $userid, $userid, 5)");
-    $i = $db->insert_id();
-    $db->query(
-            "UPDATE `users` SET `gang` = $i, `money` = `money` - {$cg_price} WHERE `userid` = $userid");
+    // engine v3: the gang is founded and paid for together, and only by a player who is not in a gang and has the
+    // money at that moment
+    $created = $db->attempt(function () use ($db, $userid, $name, $desc, $cg_price) {
+        $db->query(
+                "INSERT INTO `gangs`
+                    (`gangNAME`, `gangDESC`, `gangRESPECT`, `gangPRESIDENT`, `gangVICEPRES`, `gangCAPACITY`, `gangAMENT`)
+                     VALUES('$name', '$desc', 100, $userid, $userid, 5, '')");
+        $i = $db->insert_id();
+        return $db->exec('UPDATE `users` SET `gang` = ?, `money` = `money` - ? WHERE `userid` = ? AND `gang` = 0 AND `money` >= ?', [$i, $cg_price, $userid, $cg_price]) === 1;
+    });
+    if (!$created)
+    {
+        echo "You're already in a gang, or you no longer have " . money_formatter($cg_price) . '.';
+        $h->endpage();
+        exit;
+    }
     echo 'Gang created!';
 }
 else

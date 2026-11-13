@@ -120,3 +120,31 @@ function bar_spend(int $userid, string $bar, int $amount): bool
     return $db->exec("UPDATE `users` SET `{$bar}` = `{$bar}` - ? WHERE `userid` = ? AND `{$bar}` >= ?", [$amount, $userid, $amount]) === 1;
 }
 
+/**
+ * A gang's vault. Take money and crystals out together: true if the vault held both and they were taken; false,
+ * with nothing changed, if not.
+ */
+function vault_take(int $gang, int $money, int $crystals = 0): bool
+{
+    global $db;
+    if ($money < 0 || $crystals < 0) {
+        throw new InvalidArgumentException('A negative amount.');
+    }
+    if ($money === 0 && $crystals === 0) {
+        return true;
+    }
+    return $db->exec('UPDATE `gangs` SET `gangMONEY` = `gangMONEY` - ?, `gangCRYSTALS` = `gangCRYSTALS` - ? WHERE `gangID` = ? AND `gangMONEY` >= ? AND `gangCRYSTALS` >= ?',
+        [$money, $crystals, $gang, $money, $crystals]) === 1;
+}
+
+/** Put money and crystals into a gang's vault. False if there is no such gang. */
+function vault_give(int $gang, int $money, int $crystals = 0): bool
+{
+    global $db;
+    if ($money < 0 || $crystals < 0) {
+        throw new InvalidArgumentException('A negative amount.');
+    }
+    return $db->exec('UPDATE `gangs` SET `gangMONEY` = `gangMONEY` + ?, `gangCRYSTALS` = `gangCRYSTALS` + ? WHERE `gangID` = ?', [$money, $crystals, $gang]) === 1
+        || (int)$db->value('SELECT COUNT(*) FROM `gangs` WHERE `gangID` = ?', [$gang]) === 1;
+}
+

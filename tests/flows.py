@@ -738,6 +738,41 @@ def crafting(srv):
     sql("UPDATE users SET money = 100, crystals = 10, new_events = 0")
 
 
+def gangs(srv):
+    print("Gangs")
+    for t in ("gangs", "gangwars", "gangevents", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET gang = 0, money = 0, crystals = 0")
+    sql("UPDATE users SET money = 500000 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/creategang.php", {"submit": "1", "name": "Reds", "desc": "Test gang"}, token_path="/creategang.php")
+    b = sql("SELECT money, gang FROM users WHERE userid = 2")[0]
+    check(sum("Gang created" in x for x in out) == 1 and one("SELECT COUNT(*) FROM gangs") == "1" and b[0] == "0" and b[1] != "0",
+          "six logins founding a gang at once with money for one: one gang, paid for once", (sum("Gang created" in x for x in out), one("SELECT COUNT(*) FROM gangs"), b))
+    gid = one("SELECT gangID FROM gangs")
+    sql(f"UPDATE users SET gang = {gid} WHERE userid = 3")
+    sql("UPDATE users SET money = 1000, crystals = 5 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/yourgang.php?action=donate2", {"money": "1000", "crystals": "5"}, token_path="/yourgang.php?action=donate")
+    v = sql("SELECT gangMONEY, gangCRYSTALS FROM gangs")[0]
+    check(sum("You donated" in x for x in out) == 1 and v == ["1000", "5"] and balances(2)["money"] == 0 and balances(2)["crystals"] == 0,
+          "six logins donating the same 1,000 and 5 crystals at once: the vault receives it once", (sum("You donated" in x for x in out), v))
+    out = many(srv, "player1", "playerpass1", 6, "/yourgang.php?action=staff&act2=vault", {"who": "3", "money": "1000", "crystals": "5"}, token_path="/yourgang.php?action=staff&act2=vault")
+    v = sql("SELECT gangMONEY, gangCRYSTALS FROM gangs")[0]
+    check(sum("was given" in x for x in out) == 1 and v == ["0", "0"] and balances(3)["money"] == 1000 and balances(3)["crystals"] == 5,
+          "six logins paying a member the whole vault at once: paid once, and the vault never goes below zero", (sum("was given" in x for x in out), v, balances(3)))
+    sql("UPDATE gangs SET gangMONEY = 300")
+    sql("UPDATE users SET money = 0")
+    out = many(srv, "player1", "playerpass1", 6, "/yourgang.php?action=staff&act2=masspayment", {"amt": "100"}, token_path="/yourgang.php?action=staff&act2=masspayment")
+    total = int(one("SELECT SUM(money) FROM users")) + int(one("SELECT gangMONEY FROM gangs"))
+    check(total == 300 and int(one("SELECT gangMONEY FROM gangs")) >= 0, "six mass payments at once from a vault of 300: no more than 300 is ever paid out", (total, one("SELECT gangMONEY FROM gangs")))
+    sql("UPDATE gangs SET gangMONEY = 100000, gangCAPACITY = 5")
+    out = many(srv, "player1", "playerpass1", 6, "/yourgang.php?action=staff&act2=upgrade", {"membs": "1"}, token_path="/yourgang.php?action=staff&act2=upgrade")
+    g = sql("SELECT gangMONEY, gangCAPACITY FROM gangs")[0]
+    check(g == ["0", "6"], "six capacity upgrades at once with money for one: one slot is added", g)
+    for t in ("gangs", "gangwars", "gangevents", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET gang = 0, money = 100, crystals = 10, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -758,6 +793,7 @@ def main():
         town(srv)
         items(srv)
         crafting(srv)
+        gangs(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
