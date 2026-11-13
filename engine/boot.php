@@ -31,6 +31,7 @@ require_once __DIR__ . '/mods/Achievements.php';
 require_once __DIR__ . '/mods/Missions.php';
 require_once __DIR__ . '/mods/Bounties.php';
 require_once __DIR__ . '/mods/Crafting.php';
+require_once __DIR__ . '/mods/Season.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';

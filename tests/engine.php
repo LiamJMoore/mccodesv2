@@ -23,6 +23,7 @@ require 'engine/mods/Achievements.php';
 require 'engine/mods/Missions.php';
 require 'engine/mods/Bounties.php';
 require 'engine/mods/Crafting.php';
+require 'engine/mods/Season.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -447,6 +448,33 @@ check(!str_contains($out, 'href') && !str_contains($out, '<script') && !str_cont
 $out = $bb->bbcode_parse('[b]bold[/b] [url=https://example.com/x]link[/url] [style=color:red;font-weight:bold]s[/style] [color=blue]c[/color] [size=4]z[/size]');
 check($out === "<b>bold</b> <a href='https://example.com/x' rel='nofollow noopener noreferrer' target='_blank'>link</a> <span style='color:red;font-weight:bold'>s</span> <font color='blue'>c</font> <font size='4'>z</font>",
     'ordinary formatting, links and colours still work', $out);
+
+// the season pass
+foreach (['v3_season', 'v3_season_claims', 'v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
+check(season_id(strtotime('2026-03-15')) === '2026-03' && season_left(strtotime('2026-03-31 23:00:00')) === 3600 && season_reward(5)['free'] === ['money' => 12500, 'crystals' => 2]
+    && season_reward(30)['premium']['crystals'] === 50 && season_reward(7)['premium']['crystals'] === 3, 'a season is a calendar month, and each tier has a fixed reward on each track');
+progress_add(2, 'fights_won', 20);          // 600 points, and achievements pay some money
+$st = season_status(2);
+check($st['xp'] === 600 && $st['tier'] === 1 && $st['into'] === 200 && !$st['premium'] && season_waiting(2) === 1, 'doing things earns season points, and points reach tiers', $st);
+progress_add(2, 'gym', 1000);
+check(season_status(2)['xp'] === 600 + MCC_SEASON_GYM_DAILY_CAP && (progress_add(2, 'gym', 50) || true) && season_status(2)['xp'] === 600 + MCC_SEASON_GYM_DAILY_CAP, 'gym points stop at the daily cap', season_status(2)['xp']);
+$db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
+$got = season_claim_all(2);
+check($got === ['tiers' => 2, 'money' => 2500 + 5000, 'crystals' => 0] && $bal(2)['money'] === 7500 && season_claim_all(2)['tiers'] === 0 && $bal(2)['money'] === 7500, 'reached rewards are collected once', $got);
+check(str_contains((string)season_buy(2), 'crystals') && !season_status(2)['premium'], 'the premium track cannot be bought without the crystals');
+$db->exec('UPDATE `users` SET `crystals` = ? WHERE `userid` = 2', [MCC_SEASON_PREMIUM_PRICE + 1]);
+check(season_buy(2) === null && $bal(2)['crystals'] === 1 && season_status(2)['premium'] && season_buy(2) !== null && $bal(2)['crystals'] === 1, 'the premium track is bought once, for its price');
+$got = season_claim_all(2);
+check($got === ['tiers' => 2, 'money' => 5000 + 10000, 'crystals' => 6] && $bal(2)['crystals'] === 7, 'a pass bought late pays the premium rewards for tiers already reached', $got);
+season_add(2, 999999);
+check(season_status(2)['tier'] === MCC_SEASON_TIERS && season_claim_all(2)['tiers'] === 2 * (MCC_SEASON_TIERS - 2) && season_status(2, '2020-01')['xp'] === 0, 'tiers stop at the top, and another season starts from nothing');
+foreach (['v3_season', 'v3_season_claims', 'v3_progress', 'v3_achievements', 'v3_missions', 'events'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

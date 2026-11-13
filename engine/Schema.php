@@ -103,6 +103,24 @@ const MCC_SCHEMA_STEPS = [
           ) ENGINE=InnoDB",
           "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_snapshot_day', '', 'string' FROM DUAL
            WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_snapshot_day')"],
+    // 8: the season pass
+    8 => ["CREATE TABLE IF NOT EXISTS `v3_season` (
+              `userid` INT NOT NULL,
+              `season` CHAR(7) NOT NULL,
+              `xp` INT NOT NULL DEFAULT 0,
+              `premium` TINYINT NOT NULL DEFAULT 0,
+              `gym_day` DATE NULL,
+              `gym_points` INT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `season`),
+              KEY `top` (`season`, `xp`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_season_claims` (
+              `userid` INT NOT NULL,
+              `season` CHAR(7) NOT NULL,
+              `tier` TINYINT NOT NULL,
+              `track` ENUM('free', 'premium') NOT NULL,
+              PRIMARY KEY (`userid`, `season`, `tier`, `track`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

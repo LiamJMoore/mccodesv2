@@ -950,6 +950,33 @@ def equipping(srv):
     sql("UPDATE users SET equip_primary = 0, equip_secondary = 0, equip_armor = 0")
 
 
+def season(srv):
+    print("Season pass")
+    for t in ("v3_season", "v3_season_claims"):
+        sql(f"DELETE FROM {t}")
+    sql("INSERT INTO v3_season (userid, season, xp, premium) VALUES (2, DATE_FORMAT(NOW(), '%Y-%m'), 1200, 0)")
+    sql("UPDATE users SET money = 0, crystals = 150 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/season.php")
+    check("Season Pass (3)" in body and "Collect 3 rewards" in body and "Unlock premium for 150 crystals" in body, "the page and the menu show three rewards waiting and the premium offer")
+
+    def grab(sess, prepare=False, prepared=None, do="claim"):
+        if prepare:
+            page = sess.get("/season.php")[2]
+            return re.search(r"name='verf' value='([^']+)' /><input type='hidden' name='do' value='" + do + "'", page).group(1)
+        return sess.get("/season.php", {"do": do, "verf": prepared})[2]
+    out = at_once(srv.base, "player1", "playerpass1", 8, grab)
+    check(balances(2)["money"] == 2500 + 5000 + 7500 and one("SELECT COUNT(*) FROM v3_season_claims") == "3", "eight logins collecting at once: each reward is paid once", balances(2)["money"])
+    out = at_once(srv.base, "player1", "playerpass1", 8, lambda sess, prepare=False, prepared=None: grab(sess, prepare, prepared, "buy"))
+    check(sum("Premium unlocked" in x for x in out) == 1 and balances(2)["crystals"] == 0, "eight logins buying the pass at once: bought and paid for once", (sum("Premium unlocked" in x for x in out), balances(2)["crystals"]))
+    s.get("/season.php", {"do": "claim", "verf": token(s, "/season.php")})
+    check(balances(2)["crystals"] == 9 and balances(2)["money"] == 15000 + 30000, "the premium rewards for tiers already reached can then be collected", balances(2))
+    for t in ("v3_season", "v3_season_claims"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -975,6 +1002,7 @@ def main():
         dashboard(srv)
         forums(srv)
         equipping(srv)
+        season(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

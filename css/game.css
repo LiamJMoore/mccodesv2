@@ -259,3 +259,12 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
 .dash-table{margin:12px 0;text-align:left}
 .dash-table summary{cursor:pointer;color:#B9A8FF}
 .dash-flag{color:#FBBF24}
+
+/* -- engine v3: season pass ---------------------------------------------- */
+.season-head{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0;text-align:left}
+.season-head div{padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.03)}
+.season-head small{display:block;color:var(--mute);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.season-head b{font:700 20px var(--disp)}
+.season-bar{height:12px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.season-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+.season-offer{margin:14px 0;padding:14px 16px;border:1px solid rgba(124,92,255,.55);border-radius:var(--r);background:rgba(124,92,255,.1);text-align:left}
