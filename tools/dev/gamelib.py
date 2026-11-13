@@ -80,7 +80,9 @@ def config():
 def sql(query):
     """run one statement against the game's database and return its rows as lists of strings"""
     c = config()
-    out = subprocess.run(["mariadb", "-h", c["hostname"], "-u", c["username"], f"-p{c['password']}", c["database"], "-N", "-B", "-e", query],
+    import shutil
+    client = shutil.which("mariadb") or shutil.which("mysql")
+    out = subprocess.run([client, "-h", c["hostname"], "-u", c["username"], f"-p{c['password']}", c["database"], "-N", "-B", "-e", query],
                          capture_output=True, text=True)
     if out.returncode:
         raise RuntimeError(out.stderr.strip())

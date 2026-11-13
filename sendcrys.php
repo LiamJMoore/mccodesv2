@@ -60,20 +60,13 @@ else
             $h->endpage();
             exit;
         }
-        elseif ($_POST['crystals'] > $ir['crystals'])
+        elseif (!wallet_send($userid, (int)$_GET['ID'], 'crystals', (int)$_POST['crystals']))   // engine v3: taken and given together, or not at all
         {
             echo 'Not enough crystals to send.';
         }
         else
         {
-            $db->query(
-                    "UPDATE `users`
-                     SET `crystals` = `crystals` - {$_POST['crystals']}
-                     WHERE `userid` = $userid");
-            $db->query(
-                    "UPDATE `users`
-                     SET `crystals` = `crystals` + {$_POST['crystals']}
-                     WHERE `userid` = {$_GET['ID']}");
+
             echo "You sent {$_POST['crystals']} crystals to {$er['username']} (ID {$_GET['ID']}).";
             event_add($_GET['ID'],
                 "You received {$_POST['crystals']} crystals from {$ir['username']}.");

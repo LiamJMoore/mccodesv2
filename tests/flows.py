@@ -106,9 +106,72 @@ def bank(srv):
     check(sum(out) == 1 and b["money"] == 0 and b["bank"] == 850, "ten logins depositing the same $1,000 at once: it is banked once", (sum(out), b))
 
 
+def cyberbank(srv):
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    sql("UPDATE users SET money = 12000000, cybermoney = -1 WHERE userid = 2")
+    s.get("/cyberbank.php?buy")
+    check(balances()["cyber"] == -1, "the Cyber Bank's old ?buy link changes nothing by itself")
+    (_, _, body), _ = s.form("/cyberbank.php?action=buy", {})
+    check("you bought a bank account" in body and balances()["money"] == 2000000 and balances()["cyber"] == 0, "opening a Cyber Bank account takes $10,000,000", balances())
+    (_, _, body), _ = s.form("/cyberbank.php?action=deposit", {"deposit": "2000000"})
+    check(balances()["money"] == 0 and balances()["cyber"] == 1700000, "a $2,000,000 deposit pays the 15% fee: $1,700,000 is banked", balances())
+    (_, _, body), _ = s.form("/cyberbank.php?action=withdraw", {"withdraw": "1000000"})
+    b = balances()
+    check("hands it over" in body and b["cyber"] == 700000 and b["money"] == 925000, "a $1,000,000 withdrawal leaves the bank whole and pays out less the 7.5% fee ($925,000)", b)
+    (_, _, body), _ = s.form("/cyberbank.php?action=withdraw", {"withdraw": "700001"})
+    check("do not have enough banked money" in body and balances()["cyber"] == 700000, "withdrawing more than the Cyber Bank holds is refused")
+    sql("UPDATE users SET money = 0, cybermoney = 1000000 WHERE userid = 2")
+    import re
+
+    def withdraw(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get("/cyberbank.php")
+            return re.search(r"withdraw' method='post'><input type='hidden' name='verf' value='([^']+)'", page).group(1)
+        _, _, body = sess.get("/cyberbank.php?action=withdraw", {"withdraw": "1000000", "verf": prepared})
+        return "hands it over" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, withdraw)
+    b = balances()
+    check(sum(out) == 1 and b["cyber"] == 0 and b["money"] == 925000, "ten logins emptying the Cyber Bank at once: one is paid", (sum(out), b))
+
+
+def sending(srv):
+    """player1 (id 2) sends to player2 (id 3): cash, crystals, bank to bank, cyber to cyber"""
+    import re
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    cases = [("sendcash", "money", "money", "money"), ("sendcrys", "crystals", "crystals", "crystals"), ("sendbank", "xfer", "bankmoney", "bank"), ("sendcyber", "xfer", "cybermoney", "cyber")]
+    for page, field, column, key in cases:
+        sql(f"UPDATE users SET money = 0, crystals = 0, bankmoney = 0, cybermoney = 0 WHERE userid IN (2, 3)")
+        sql(f"UPDATE users SET {column} = 500 WHERE userid = 2")
+        (_, _, body), tokens = s.form(f"/{page}.php?ID=3", {field: "200"}, token_from=f"/{page}.php?ID=3")
+        check(balances(2)[key] == 300 and balances(3)[key] == 200, f"{page}: sending 200 takes it from the sender and gives it to the receiver", (balances(2), balances(3), body[-200:]))
+        (_, _, body), _ = s.form(f"/{page}.php?ID=3", {field: "301"}, token_from=f"/{page}.php?ID=3")
+        check(balances(2)[key] == 300 and balances(3)[key] == 200 and "Not enough" in body, f"{page}: sending more than you hold is refused and nothing moves", body[-160:])
+        (_, _, body), _ = s.form(f"/{page}.php?ID=2", {field: "10"}, token_from=f"/{page}.php?ID=2")
+        (_, _, body2), _ = s.form(f"/{page}.php?ID=999999", {field: "10"}, token_from=f"/{page}.php?ID=999999")
+        check(balances(2)[key] == 300 and "exist" in body2, f"{page}: you cannot send to yourself or to a player who does not exist, and nothing is lost")
+
+        def send(sess, prepare=False, prepared=None, page=page, field=field):
+            if prepare:
+                _, _, html = sess.get(f"/{page}.php?ID=3")
+                return re.search(r"name='verf' value='([^']+)'", html).group(1)
+            _, _, body = sess.get(f"/{page}.php?ID=3", {field: "300", "verf": prepared})
+            return "You sent" in body or "sent" in body.lower() and "not enough" not in body.lower()
+        out = at_once(srv.base, "player1", "playerpass1", 8, send)
+        a, b = balances(2), balances(3)
+        check(a[key] == 0 and b[key] == 500 and a[key] + b[key] == 500, f"{page}: eight logins sending the same 300 at once: it arrives once, and the total between the two players is unchanged", (sum(out), a[key], b[key]))
+    sql("UPDATE users SET bankmoney = 500 WHERE userid = 2")
+    sql("UPDATE users SET bankmoney = -1 WHERE userid = 3")
+    (_, _, body), _ = s.form("/sendbank.php?ID=3", {"xfer": "100"}, token_from="/sendbank.php?ID=3")
+    check(balances(2)["bank"] == 500 and balances(3)["bank"] == -1, "sendbank: money is not sent into a bank account the receiver has not opened", body[-200:])
+
+
 def main():
     with Server(8770) as srv:
         bank(srv)
+        cyberbank(srv)
+        sending(srv)
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
 

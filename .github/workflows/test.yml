@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      db:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: rootpass
+          MARIADB_DATABASE: mcctest
+          MARIADB_USER: mcc
+          MARIADB_PASSWORD: mccpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, gd
+          coverage: none
+      # Every PHP file parses.
+      - run: |
+          fail=0
+          for f in $(git ls-files '*.php'); do php -l "$f" > /dev/null || fail=1; done
+          exit $fail
+      # A fresh game, installed the way installer.php installs one.
+      - run: php tools/dev/setup.php --host=127.0.0.1 --user=mcc --pass=mccpass --db=mcctest --force
+      # The engine's own checks: bound parameters, input helpers, the money functions.
+      - run: php tests/engine.php
+      # Every page loads for a player and for an admin with no PHP error.
+      - run: python3 tools/dev/smoke.py
+      # What players do, end to end, against the database: banks and sending, including the same request sent from several logins at once.
+      - run: python3 tests/flows.py
