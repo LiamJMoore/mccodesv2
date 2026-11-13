@@ -51,6 +51,20 @@ const MCC_SCHEMA_STEPS = [
               PRIMARY KEY (`userid`, `day`, `slot`),
               KEY `counting` (`userid`, `day`, `stat`)
           ) ENGINE=InnoDB"],
+    // 4: bounties
+    4 => ["CREATE TABLE IF NOT EXISTS `v3_bounties` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `target` INT NOT NULL,
+              `placer` INT NOT NULL,
+              `amount` BIGINT NOT NULL,
+              `anonymous` TINYINT NOT NULL DEFAULT 0,
+              `placed` INT NOT NULL,
+              `status` ENUM('open', 'collected', 'withdrawn') NOT NULL DEFAULT 'open',
+              `collector` INT NULL,
+              `closed` INT NULL,
+              KEY `open_on` (`status`, `target`),
+              KEY `placed_by` (`placer`, `status`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

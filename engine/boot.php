@@ -29,6 +29,7 @@ require_once __DIR__ . '/Progress.php';
 require_once __DIR__ . '/mods/Daily.php';
 require_once __DIR__ . '/mods/Achievements.php';
 require_once __DIR__ . '/mods/Missions.php';
+require_once __DIR__ . '/mods/Bounties.php';
 require_once dirname(__DIR__) . '/lib/session.php';
 mcc_session_start();
 if (!isset($_SESSION['started'])) {

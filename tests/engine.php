@@ -21,6 +21,7 @@ require 'engine/Progress.php';
 require 'engine/mods/Daily.php';
 require 'engine/mods/Achievements.php';
 require 'engine/mods/Missions.php';
+require 'engine/mods/Bounties.php';
 require 'global_func.php';
 $set = [];
 include 'config.php';
@@ -265,6 +266,41 @@ foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `hp` = 100, `maxhp` = 100, `hospital` = 0, `gang` = 0, `level` = 1, `exp` = 0, `new_events` = 0, `user_level` = IF(`userid` = 1, 2, 1), `attacking` = 0');
+
+// bounties
+$db->exec('DELETE FROM `v3_bounties`');
+$db->exec('UPDATE `users` SET `money` = 5000 WHERE `userid` = 2');
+$db->exec('UPDATE `users` SET `money` = 0 WHERE `userid` IN (3, 4)');
+check(bounty_place(2, 2, 1000) !== null && bounty_place(2, 3, 999) !== null && bounty_place(2, 99999, 1000) !== null && bounty_place(2, 3, 5000) !== null && $bal(2)['money'] === 5000
+    && (int)$db->value('SELECT COUNT(*) FROM `v3_bounties`') === 0, 'a bounty on yourself, too small, on nobody, or that you cannot pay (with the fee) is refused and costs nothing');
+check(bounty_place(2, 3, 2000) === null && $bal(2)['money'] === 5000 - 2200 && bounty_on(3) === 2000 && bounty_place(2, 3, 1000, true) === null && bounty_on(3) === 3000 && $bal(2)['money'] === 1700,
+    'placing a bounty takes the bounty and a 10% fee, and bounties on one player add up');
+$list = bounty_hitlist();
+check(count($list) === 1 && (int)$list[0]['target'] === 3 && (int)$list[0]['total'] === 3000 && (int)$list[0]['bounties'] === 2, 'the hitlist shows the player and the total on their head');
+$first = (int)$db->value('SELECT MIN(`id`) FROM `v3_bounties`');
+check(!bounty_withdraw(3, $first) && bounty_withdraw(2, $first) && !bounty_withdraw(2, $first) && $bal(2)['money'] === 3700 && bounty_on(3) === 1000,
+    'only the placer can withdraw a bounty, once; the bounty comes back and the fee does not');
+check(bounty_collect(2, 3) === ['count' => 0, 'total' => 0] && bounty_on(3) === 1000, 'you cannot collect a bounty you placed yourself');
+// through a fight: leaving them does not pay, hospitalising does
+$db->exec('UPDATE `users` SET `hp` = 0, `hospital` = 0 WHERE `userid` = 3');
+$w = fight_win($user(4), 3, 'leave');
+check($bal(4)['money'] === 500 /* First Blood */ && bounty_on(3) === 1000 && str_contains(implode(' ', $w['notes']), 'only paid for'), 'leaving the loser outside the hospital does not collect the bounty');
+$db->exec('UPDATE `users` SET `hp` = 0, `hospital` = 0 WHERE `userid` = 3');
+$w = fight_win($user(4), 3, 'hospitalise');
+check($bal(4)['money'] === 500 + 1000 + 1000 /* Bounty Hunter */ && bounty_on(3) === 0 && str_contains(implode(' ', $w['notes']), 'Bounty collected') && progress_get(4, 'bounties') === 1
+    && (int)$db->value("SELECT COUNT(*) FROM `events` WHERE `evUSER` = 2 AND `evTEXT` LIKE '%was collected by%'") === 1 && bounty_collect(4, 3)['count'] === 0,
+    'hospitalising them pays the bounty to the winner once, and tells the placer', [$bal(4), $w['notes']]);
+for ($i = 0; $i < MCC_BOUNTY_OPEN_LIMIT; $i++) {
+    $db->insert('v3_bounties', ['target' => 3, 'placer' => 2, 'amount' => 1000, 'anonymous' => 0, 'placed' => time(), 'status' => 'open']);
+}
+check(str_contains((string)bounty_place(2, 3, 1000), 'already have'), 'a player can have only so many bounties out at once');
+$db->exec('DELETE FROM `v3_bounties`');
+$db->exec('DELETE FROM `attacklogs`');
+$db->exec('DELETE FROM `events`');
+foreach (['v3_progress', 'v3_achievements', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `hp` = 100, `hospital` = 0, `exp` = 0, `level` = 1, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

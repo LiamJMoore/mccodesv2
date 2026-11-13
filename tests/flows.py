@@ -551,6 +551,63 @@ def fights(srv):
     sql("UPDATE userstats SET strength = 10, agility = 10, guard = 10")
 
 
+def bounties(srv):
+    print("Bounties")
+    for t in ("v3_bounties", "v3_progress", "v3_achievements", "v3_missions", "attacklogs", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET attacking = 0, hospital = 0, jail = 0, gang = 0, hp = 100, maxhp = 100, level = 1, exp = 0, money = 0, location = 1")
+    sql("UPDATE users SET money = 11000 WHERE userid = 4")
+    placer = Session(srv.base)
+    placer.login("player3", "playerpass3")
+    placer.get("/bounties.php", {"do": "place", "target": "3", "amount": "5000", "verf": "wrong"})
+    check(balances(4)["money"] == 11000, "placing a bounty without the form's token costs nothing")
+
+    def place(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get("/bounties.php")
+            return re.search(r"name='verf' value='([^']+)' /><input type='hidden' name='do' value='place'", page).group(1)
+        _, _, body = sess.get("/bounties.php", {"do": "place", "target": "3", "amount": "5000", "verf": prepared})
+        return "Bounty placed" in body
+    out = at_once(srv.base, "player3", "playerpass3", 6, place)
+    check(sum(out) == 2 and balances(4)["money"] == 0 and one("SELECT COALESCE(SUM(amount), 0) FROM v3_bounties WHERE status = 'open'") == "10000",
+          "six logins each placing a 5,000 bounty with money for two: two are placed, and the pocket never goes below zero", (sum(out), balances(4)["money"]))
+    _, _, body = placer.get("/bounties.php")
+    check("player2" in body and "$10,000" in body and body.count("value='Withdraw'") == 2, "the hitlist shows the target and the total, and the placer can withdraw")
+    bid = one("SELECT MIN(id) FROM v3_bounties")
+
+    def withdraw(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get("/bounties.php")
+            return re.search(r"name='verf' value='([^']+)' /><input type='hidden' name='do' value='withdraw'", page).group(1)
+        _, _, body = sess.get("/bounties.php", {"do": "withdraw", "id": bid, "verf": prepared})
+        return "Bounty withdrawn" in body
+    out = at_once(srv.base, "player3", "playerpass3", 6, withdraw)
+    check(sum(out) == 1 and balances(4)["money"] == 5000, "six logins withdrawing the same bounty at once: refunded once", (sum(out), balances(4)["money"]))
+
+    # the hunter: player1 beats player2 and hospitalises them, from several logins at once
+    sql("UPDATE users SET energy = 12, maxenergy = 12, equip_primary = 2 WHERE userid = 2")
+    sql("UPDATE userstats SET strength = 100000, agility = 100000, guard = 100000 WHERE userid = 2")
+
+    def hunt(sess, prepare=False, prepared=None):
+        if prepare:
+            for step in range(1, 40):
+                if "Hospitalize Them" in sess.get(f"/attack.php?ID=3&wepid=2&nextstep={step * 2 - 1}")[2]:
+                    return True
+            return False
+        _, _, body = sess.get("/attackbeat.php?ID=3", {})
+        return "Bounty collected" in body
+    out = at_once(srv.base, "player1", "playerpass1", 6, hunt)
+    m = balances(2)["money"]
+    check(sum(out) == 1 and m == 5000 + 500 + 1000 and one("SELECT COUNT(*) FROM v3_bounties WHERE status = 'collected' AND collector = 2") == "1",
+          "six logins finishing the same fight at once: the 5,000 bounty is paid once (plus the First Blood and Bounty Hunter rewards)", (sum(out), m))
+    _, _, body = placer.get("/bounties.php")
+    check("Recently collected" in body and "Nobody has a price on their head" in body, "the hitlist is then empty and shows the collection")
+    for t in ("v3_bounties", "v3_progress", "v3_achievements", "v3_missions", "attacklogs", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET attacking = 0, hospital = 0, hp = 100, maxhp = 100, level = 1, exp = 0, money = 100, crystals = 10, energy = 12, equip_primary = 0, new_events = 0")
+    sql("UPDATE userstats SET strength = 10, agility = 10, guard = 10")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -567,6 +624,7 @@ def main():
         temple(srv)
         missions(srv)
         fights(srv)
+        bounties(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
