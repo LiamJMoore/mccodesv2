@@ -13,6 +13,10 @@ const MONO_ON = 1;
 require 'engine/version.php';
 require 'engine/helpers.php';
 require 'engine/Economy.php';
+require 'engine/Items.php';
+require 'engine/Schema.php';
+require 'engine/mods/Daily.php';
+$set = [];
 include 'config.php';
 require 'class/class_db_mysqli.php';
 $db = new database();
@@ -83,6 +87,36 @@ foreach ([fn () => wallet_take(2, 'userpass', 1), fn () => wallet_take(2, 'money
     }
 }
 check($threw === 3, 'the money functions refuse a column that is not a balance, a negative amount, and a move to the same balance');
+
+// the database upgrades itself
+check(schema_latest() >= 2 && (int)$db->value("SELECT `conf_value` FROM `settings` WHERE `conf_name` = 'engine_schema'") === schema_latest() && schema_upgrade() === [],
+    'the database is on the latest schema step, and asking again applies nothing');
+
+// the daily reward
+$db->exec('DELETE FROM `v3_daily` WHERE `userid` = 2');
+$db->exec('UPDATE `users` SET `money` = 0, `crystals` = 0 WHERE `userid` = 2');
+check(daily_reward(1) === ['money' => 500, 'crystals' => 0] && daily_reward(7) === ['money' => 5000, 'crystals' => 5] && daily_reward(8) === ['money' => 500, 'crystals' => 0]
+    && daily_reward(30) === ['money' => 750 + 50000, 'crystals' => 25] && daily_reward(1, 10)['money'] === 5000 && daily_reward(1, 999)['money'] === 25000,
+    'daily_reward() rises through the week, adds crystals on day 7 and a bonus on day 30, and grows with level up to 50');
+$st = daily_status(2, 1, '2026-03-01');
+check(!$st['claimed'] && $st['streak'] === 0 && $st['next'] === 1, 'a player who has never claimed is on day 1');
+$p = daily_claim(2, 1, '2026-03-01');
+check($p === ['day' => 1, 'money' => 500, 'crystals' => 0] && $bal(2)['money'] === 500 && daily_claim(2, 1, '2026-03-01') === null && $bal(2)['money'] === 500,
+    'daily_claim() pays day 1 once, and a second claim the same day pays nothing');
+check(daily_status(2, 1, '2026-03-01')['claimed'] && daily_status(2, 1, '2026-03-02')['next'] === 2, 'after claiming, today shows as claimed and tomorrow is day 2');
+$day = '2026-03-01';
+for ($i = 2; $i <= 7; $i++) {
+    $day = date('Y-m-d', strtotime($day . ' +1 day'));
+    $p = daily_claim(2, 1, $day);
+}
+check($p === ['day' => 7, 'money' => 5000, 'crystals' => 5] && $bal(2)['crystals'] === 5 && $bal(2)['money'] === 500 + 750 + 1000 + 1500 + 2000 + 3000 + 5000,
+    'seven days in a row reach the weekly bonus');
+$p = daily_claim(2, 1, '2026-03-10');
+$st = daily_status(2, 1, '2026-03-10');
+check($p['day'] === 1 && $st['streak'] === 1 && $st['best'] === 7 && $st['claims'] === 8 && daily_status(2, 1, '2026-03-15')['streak'] === 0,
+    'missing a day starts the streak again at day 1, and the longest streak is remembered');
+$db->exec('DELETE FROM `v3_daily` WHERE `userid` = 2');
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10 WHERE `userid` = 2');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

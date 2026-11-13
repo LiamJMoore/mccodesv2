@@ -8,6 +8,7 @@ login, and checks both what the page said and what the database holds afterwards
 player in on several devices and send the same request from all of them together: money must never be made or lost.
 """
 import os
+import re
 import sys
 import threading
 
@@ -281,6 +282,34 @@ def markets(srv):
     check(balances(2)["crystals"] == 20 and sql("SELECT COUNT(*) FROM crystalmarket") == [["0"]], "ten logins taking the same listing back at once: the 20 crystals come back once", (sum(out), balances(2)["crystals"]))
 
 
+def daily(srv):
+    print("Daily reward")
+    sql("DELETE FROM v3_daily")
+    sql("UPDATE users SET money = 0, crystals = 0, level = 1 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/daily.php")
+    check("Daily Reward (claim)" in body and "Today is <b>day 1</b>" in body, "the menu and the page show the reward is waiting")
+    s.get("/daily.php", {"verf": "wrong"})
+    check(balances(2)["money"] == 0, "a claim without the form's token pays nothing")
+
+    def claim(sess, prepare=False, prepared=None):
+        if prepare:
+            _, _, page = sess.get("/daily.php")
+            return re.search(r"name='verf' value='([^']+)'", page).group(1)
+        _, _, body = sess.get("/daily.php", {"verf": prepared})
+        return "Day 1 claimed" in body
+    out = at_once(srv.base, "player1", "playerpass1", 10, claim)
+    check(sum(out) == 1 and balances(2)["money"] == 500, "ten logins claiming at once: paid once", (sum(out), balances(2)["money"]))
+    _, _, body = s.get("/daily.php")
+    check("Claimed for today" in body and "Daily Reward (claim)" not in body, "the page and the menu then show it as claimed")
+    sql("UPDATE v3_daily SET last_claim = CURDATE() - INTERVAL 1 DAY WHERE userid = 2")
+    (_, _, body), _ = s.form("/daily.php", {})
+    check("Day 2 claimed" in body and balances(2)["money"] == 1250, "the next day continues the streak", balances(2)["money"])
+    sql("DELETE FROM v3_daily")
+    sql("UPDATE users SET money = 100, crystals = 10 WHERE userid = 2")
+
+
 def main():
     with Server(8770) as srv:
         shop(srv)
@@ -288,6 +317,7 @@ def main():
         bank(srv)
         cyberbank(srv)
         sending(srv)
+        daily(srv)
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
 

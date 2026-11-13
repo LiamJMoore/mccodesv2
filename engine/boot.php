@@ -22,6 +22,8 @@ require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/Economy.php';
 require_once __DIR__ . '/Items.php';
+require_once __DIR__ . '/Schema.php';
+require_once __DIR__ . '/mods/Daily.php';
 require_once dirname(__DIR__) . '/lib/session.php';
 mcc_session_start();
 if (!isset($_SESSION['started'])) {
@@ -65,6 +67,9 @@ if ($MCC_BOOT === 'public') {
 }
 
 $set = get_site_settings();
+if ((int)($set['engine_schema'] ?? 0) < schema_latest()) {
+    schema_upgrade();          // the game's database is behind the engine: bring it up to date, once
+}
 if ($set['use_timestamps_over_crons']) {
     define('SILENT_CRONS', true);
     try {

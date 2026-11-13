@@ -63,6 +63,11 @@ else
 {
     echo "<a href='jail.php'>Jail ($jc)</a><br />";
 }
+// engine v3 mods
+$mcc_daily = daily_status((int)$ir['userid'], (int)$ir['level']);
+echo $mcc_daily['claimed']
+        ? "<a href='daily.php'>Daily Reward</a><br />"
+        : "<a href='daily.php' style='font-weight: bold;'>Daily Reward (claim)</a><br />";
 echo "<a href='forums.php'>Forums</a><br />";
 echo ($ir['new_announcements'])
         ? '<a href="announcements.php" style="font-weight: bold;">Announcements ('
