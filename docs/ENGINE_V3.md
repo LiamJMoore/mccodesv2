@@ -101,6 +101,8 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Player API | `api.php`, `apikey.php` | `Api.php` | Read-only JSON. Keys are stored as fingerprints and limited to 60 requests a minute |
 | Record | `record.php` | `Api.php` | A player's counters with ranks, fight record, nine leaderboards |
 | Staff dashboard | `staff_dashboard.php` | `Dashboard.php` | Totals, a books-balance check, 30-day trends, a watchlist, system health |
+| Season Pass | `season.php` | `Season.php` | A season a month; 30 tiers; a free track and a premium one bought with crystals; nothing random |
+| Installable app | `manifest.webmanifest`, `sw.js` | | The game installs to a phone's home screen and shows a friendly page when offline. Game pages are never stored |
 
 Two small systems sit under these:
 

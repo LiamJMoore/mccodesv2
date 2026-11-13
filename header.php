@@ -40,6 +40,10 @@ class headers
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link href="css/game.css" type="text/css" rel="stylesheet" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#0B0F1A" />
+<link rel="icon" href="images/app-icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="images/app-icon.svg" />
 <title>{$set['game_name']}</title>
 </head>
 <body class="mc26">
@@ -206,6 +210,7 @@ OUT;
 </main>
 </div>
 <script src="js/notify.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>
 OUT;

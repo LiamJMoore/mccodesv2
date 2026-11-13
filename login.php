@@ -21,6 +21,9 @@ print
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script type="text/javascript" src="js/login.js"></script>
 <link href="css/game.css" type="text/css" rel="stylesheet" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#0B0F1A" />
+<link rel="icon" href="images/app-icon.svg" type="image/svg+xml" />
 </head>
 <body class="mc26 auth" onload="getme();">
 <div class="auth-wrap">
