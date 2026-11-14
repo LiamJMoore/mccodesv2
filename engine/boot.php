@@ -36,6 +36,7 @@ require_once __DIR__ . '/mods/Store.php';
 require_once __DIR__ . '/mods/Perks.php';
 require_once __DIR__ . '/mods/Stocks.php';
 require_once __DIR__ . '/mods/Turf.php';
+require_once __DIR__ . '/mods/Lottery.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';
@@ -87,6 +88,9 @@ if ((int)($set['engine_schema'] ?? 0) < schema_latest()) {
 }
 if (($set['engine_turf_week'] ?? '') !== turf_week()) {
     turf_settle();             // a new week: pay the gangs that held each city last week
+}
+if (($set['engine_lotto_day'] ?? '') !== date('Y-m-d')) {
+    lotto_settle();            // a new day: draw yesterday's lottery
 }
 if (($set['engine_snapshot_day'] ?? '') !== date('Y-m-d')) {
     dash_snapshot();           // the first page load of the day records the game's totals for the staff dashboard

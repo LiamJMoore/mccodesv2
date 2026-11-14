@@ -1119,6 +1119,30 @@ def turf(srv):
     sql("UPDATE users SET gang = 0, brave = 5, maxbrave = 5, money = 100, crystals = 10, level = 1, exp = 0, crimexp = 0, new_events = 0, energy = 12, maxenergy = 12, hp = 100, maxhp = 100")
 
 
+def lottery(srv):
+    print("Lottery")
+    for t in ("v3_lotto_tickets", "v3_lotto_draws", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE settings SET conf_value = CURDATE() WHERE conf_name = 'engine_lotto_day'")
+    sql("UPDATE users SET money = 1000000, new_events = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/lottery.php", {"tickets": "10"}, token_path="/lottery.php")
+    mine = one("SELECT tickets FROM v3_lotto_tickets WHERE userid = 2")
+    check(mine == "20" and balances(2)["money"] == 980000, "eight logins buying 10 tickets at once: the cap of 25 holds and each ticket is paid for", (mine, balances(2)["money"]))
+    # yesterday's draw, settled by eight page loads at once
+    sql("UPDATE v3_lotto_tickets SET day = CURDATE() - INTERVAL 1 DAY")
+    sql("UPDATE settings SET conf_value = CURDATE() - INTERVAL 1 DAY WHERE conf_name = 'engine_lotto_day'")
+    sql("UPDATE users SET money = 0 WHERE userid = 2")
+    many(srv, "player1", "playerpass1", 8, "/explore.php")
+    check(balances(2)["money"] == 20 * 800 + 10000 and one("SELECT COUNT(*) FROM v3_lotto_draws") == "1", "eight page loads arriving after midnight: the draw is made and paid once", balances(2)["money"])
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/lottery.php")
+    check("Recent draws" in body and "player1" in body, "the page shows the winner")
+    for t in ("v3_lotto_tickets", "v3_lotto_draws", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1149,6 +1173,7 @@ def main():
         crystalshop(srv)
         stocks(srv)
         turf(srv)
+        lottery(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

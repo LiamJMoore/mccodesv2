@@ -28,6 +28,7 @@ require 'engine/mods/Store.php';
 require 'engine/mods/Perks.php';
 require 'engine/mods/Stocks.php';
 require 'engine/mods/Turf.php';
+require 'engine/mods/Lottery.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -622,6 +623,37 @@ foreach (['v3_turf', 'v3_turf_wins', 'gangs', 'gangevents', 'v3_progress', 'v3_a
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `gang` = 0, `money` = 100, `crystals` = 10, `new_events` = 0');
+
+// the lottery
+foreach (['v3_lotto_tickets', 'v3_lotto_draws', 'events'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 30000, `new_events` = 0');
+check(lotto_buy(2, 0, '2026-02-01') !== null && lotto_buy(2, 5, '2026-02-01') === null && $bal(2)['money'] === 25000 && lotto_buy(2, 21, '2026-02-01') !== null && lotto_buy(2, 20, '2026-02-01') === null
+    && $bal(2)['money'] === 5000 && lotto_buy(2, 1, '2026-02-01') !== null && lotto_buy(3, 15, '2026-02-01') === null, 'tickets cost their price, and a player cannot go past the day\'s cap');
+$db->exec('UPDATE `users` SET `money` = 500 WHERE `userid` = 4');
+check(str_contains((string)lotto_buy(4, 1, '2026-02-01'), 'need') && lotto_today(4, '2026-02-01')['mine'] === 0, 'tickets you cannot pay for are not issued');
+$t = lotto_today(2, '2026-02-01');
+check($t['tickets'] === 40 && $t['players'] === 2 && $t['mine'] === 25 && $t['pot'] === 40 * 800 + MCC_LOTTO_HOUSE_ADDS && lotto_pot(0) === 0, 'the pot is 80% of ticket money plus the house\'s share');
+$db->exec("UPDATE `settings` SET `conf_value` = '2026-02-01' WHERE `conf_name` = 'engine_lotto_day'");
+check(lotto_settle('2026-02-01') === 0 && (int)$db->value('SELECT COUNT(*) FROM `v3_lotto_draws`') === 0, 'a day is not drawn before it has ended');
+$before = $bal(3)['money'];
+check(lotto_settle('2026-02-02', fn (int $n) => 26) === 1 && $bal(3)['money'] === $before + 42000 && (int)$db->value('SELECT `winner` FROM `v3_lotto_draws`') === 3 && lotto_settle('2026-02-02') === 0
+    && $bal(3)['money'] === $before + 42000 && (int)$db->value("SELECT COUNT(*) FROM `events` WHERE `evUSER` = 3 AND `evTEXT` LIKE '%won the lottery%'") === 1,
+    'at the end of the day one ticket wins the pot: drawn, paid and announced once (ticket 26 of 40 belongs to the second player)');
+$wins = [2 => 0, 3 => 0];
+for ($i = 0; $i < 300; $i++) {
+    $db->exec('DELETE FROM `v3_lotto_draws`');
+    $db->exec("UPDATE `settings` SET `conf_value` = '2026-02-01' WHERE `conf_name` = 'engine_lotto_day'");
+    lotto_settle('2026-02-02');
+    $wins[(int)$db->value('SELECT `winner` FROM `v3_lotto_draws`')]++;
+}
+check($wins[2] > 150 && $wins[3] > 70 && $wins[2] + $wins[3] === 300, 'over many draws, a player with 25 of 40 tickets wins about that share', $wins);
+foreach (['v3_lotto_tickets', 'v3_lotto_draws', 'events'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->run("UPDATE `settings` SET `conf_value` = ? WHERE `conf_name` = 'engine_lotto_day'", [date('Y-m-d')]);
+$db->exec('UPDATE `users` SET `money` = 100, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);
