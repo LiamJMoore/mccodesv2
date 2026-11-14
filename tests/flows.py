@@ -1274,6 +1274,56 @@ def ledger(srv):
     sql("UPDATE users SET money = 100, crystals = 10, bankmoney = -1, brave = 5, exp = 0, level = 1, crimexp = 0, new_events = 0")
 
 
+def couples(srv):
+    print("Marriage and the auction house")
+    for t in ("v3_proposals", "v3_spouses", "v3_joint", "v3_auctions", "inventory", "events", "v3_ledger"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 10000, maxwill = 100, will = 100, hospital = 0, jail = 0")
+    sql("UPDATE users SET maxwill = 150, will = 150, money = 0 WHERE userid = 3")
+    a = Session(srv.base)
+    a.login("player1", "playerpass1")
+    b = Session(srv.base)
+    b.login("player2", "playerpass2")
+    a.form("/marriage.php", {"do": "propose", "who": "3"})
+    out = many(srv, "player2", "playerpass2", 6, "/marriage.php", {"do": "accept", "who": "2"}, token_path="/marriage.php")
+    check(sum("You are married!" in x for x in out) == 1 and one("SELECT COUNT(*) FROM v3_spouses") == "2" and balances(2)["money"] == 0, "six logins accepting the same proposal at once: one marriage")
+    sql("UPDATE users SET money = 5000 WHERE userid = 2")
+    a.form("/marriage.php", {"do": "deposit", "amount": "5000"})
+    out = many(srv, "player2", "playerpass2", 6, "/marriage.php", {"do": "draw", "amount": "5000"}, token_path="/marriage.php")
+    check(sum("Taken from the joint account" in x for x in out) == 1 and balances(3)["money"] == 5000 and one("SELECT balance FROM v3_joint") == "0", "six logins emptying the joint account at once: it pays out once", balances(3)["money"])
+    # the house: player1 moves in with player2 (will 150), then tries to sell it
+    a.form("/marriage.php", {"do": "movein"})
+    check(one("SELECT maxwill FROM users WHERE userid = 2") == "150", "the spouse with the lesser house moves in and takes on the better will bar")
+    _, _, body = a.get("/estate.php?sellhouse")
+    check("living at your spouse" in body and balances(2)["money"] == 0 and one("SELECT maxwill FROM users WHERE userid = 2") == "150", "a guest cannot sell their spouse's house")
+    b.get("/estate.php?sellhouse")
+    check(one("SELECT maxwill FROM users WHERE userid = 2") == "100" and one("SELECT maxwill FROM users WHERE userid = 3") == "100" and balances(3)["money"] == 25000,
+          "when the owner sells, they are paid once and the guest is back in their own house", balances(3)["money"])
+    _, _, body = a.get("/viewuser.php?u=3")
+    check("Married to" in body and "player1" in body, "a profile names the spouse")
+    # the auction house
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (4, 4, 1)")
+    seller = Session(srv.base)
+    seller.login("player3", "playerpass3")
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 4")
+    out = many(srv, "player3", "playerpass3", 6, "/auction.php", {"do": "list", "inv": inv_id, "qty": "1", "start": "1000", "hours": "1"}, token_path="/auction.php")
+    check(sum("Your auction is open" in x for x in out) == 1 and one("SELECT COUNT(*) FROM v3_auctions") == "1" and inv(4, 4) == 0, "six logins listing the same item at once: one auction")
+    aid = one("SELECT id FROM v3_auctions")
+    sql("UPDATE users SET money = 3000 WHERE userid IN (2, 3)")
+    sql("UPDATE users SET money = 0 WHERE userid = 4")
+    out = many(srv, "player1", "playerpass1", 6, "/auction.php", {"do": "bid", "id": aid, "amount": "1000"}, token_path="/auction.php")
+    check(sum("You are the highest bidder" in x for x in out) == 1 and balances(2)["money"] == 2000, "six logins making the same bid at once: one bid is taken", balances(2)["money"])
+    b.form("/auction.php", {"do": "bid", "id": aid, "amount": "1500"})
+    check(balances(2)["money"] == 3000 and balances(3)["money"] == 1500, "being outbid returns the first bid")
+    sql("UPDATE v3_auctions SET ends = UNIX_TIMESTAMP() - 5")
+    many(srv, "player1", "playerpass1", 6, "/auction.php")
+    check(inv(3, 4) == 1 and balances(4)["money"] == 1425 and one("SELECT status FROM v3_auctions") == "sold", "six page loads arriving after the close: the winner gets the item and the seller is paid, once", balances(4)["money"])
+    check(balances(2)["money"] + balances(3)["money"] + balances(4)["money"] == 3000 + 1500 + 1425, "no money appeared from nowhere")
+    for t in ("v3_proposals", "v3_spouses", "v3_joint", "v3_auctions", "inventory", "events", "v3_ledger"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, maxwill = 100, will = 100, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1309,6 +1359,7 @@ def main():
         trading(srv)
         home(srv)
         ledger(srv)
+        couples(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

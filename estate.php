@@ -17,7 +17,11 @@ $mpq =
 				 LIMIT 1");
 $mp = $db->fetch_row($mpq);
 $db->free_result($mpq);
-if (isset($_GET['property']) && is_numeric($_GET['property']))
+if ((isset($_GET['property']) || isset($_GET['sellhouse'])) && marriage_is_guest($userid))
+{
+    echo "You are living at your spouse's house. <a href='marriage.php'>Move back to your own place</a> before buying or selling.";
+}
+elseif (isset($_GET['property']) && is_numeric($_GET['property']))
 {
     $_GET['property'] = abs((int) $_GET['property']);
     $npq =
@@ -48,6 +52,7 @@ if (isset($_GET['property']) && is_numeric($_GET['property']))
     else
     {
         ledger_add($userid, 'money', -(int) $np['hPRICE'], 'bought ' . $np['hNAME']);
+        marriage_house_sync($userid);
         echo "Congrats, you bought the {$np['hNAME']} for "
                 . money_formatter($np['hPRICE']) . '!';
     }
@@ -68,6 +73,7 @@ elseif (isset($_GET['sellhouse']))
     else
     {
         ledger_add($userid, 'money', (int) $mp['hPRICE'], 'sold ' . $mp['hNAME']);
+        marriage_house_sync($userid);
         echo "You sold your {$mp['hNAME']} and went back to your shed.";
     }
 }

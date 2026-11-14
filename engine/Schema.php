@@ -276,6 +276,40 @@ const MCC_SCHEMA_STEPS = [
               KEY `by_player` (`userid`, `id`),
               KEY `by_time` (`at`)
           ) ENGINE=InnoDB"],
+    // 17: marriage and the auction house
+    17 => ["CREATE TABLE IF NOT EXISTS `v3_proposals` (
+              `proposer` INT NOT NULL PRIMARY KEY,
+              `target` INT NOT NULL,
+              `at` INT NOT NULL,
+              KEY `to_whom` (`target`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_spouses` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `spouse` INT NOT NULL,
+              `since` INT NOT NULL,
+              `own_will` INT NULL,
+              UNIQUE KEY `spouse` (`spouse`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_joint` (
+              `a` INT NOT NULL,
+              `b` INT NOT NULL,
+              `balance` BIGINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`a`, `b`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_auctions` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `seller` INT NOT NULL,
+              `item` INT NOT NULL,
+              `qty` INT NOT NULL,
+              `start_bid` BIGINT NOT NULL,
+              `bid` BIGINT NOT NULL DEFAULT 0,
+              `bidder` INT NOT NULL DEFAULT 0,
+              `ends` INT NOT NULL,
+              `status` ENUM('open', 'sold', 'expired', 'cancelled') NOT NULL DEFAULT 'open',
+              `created` INT NOT NULL,
+              KEY `closing` (`status`, `ends`),
+              KEY `by_seller` (`seller`, `status`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

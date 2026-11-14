@@ -56,12 +56,14 @@ echo ui_group('Money', [
     ui_link('invest.php', 'vault', 'Investment Bank'),
     ui_link('lottery.php', 'ticket', 'Lottery'),
     ui_link('craft.php', 'hammer', 'Workshop'),
+    ui_link('auction.php', 'ticket', 'Auction House'),
 ]);
 echo ui_group('Rivals', [
     ui_link('bounties.php', 'crosshair', 'Hitlist'),
     ui_link('turf.php', 'flag', 'Territory'),
     !$in_jail && $ir['gang'] ? ui_link('yourgang.php', 'users', 'Your Gang') : '',
     ui_link('pet.php', 'paw', 'Your Pet'),
+    ui_link('marriage.php', 'heart', 'Marriage'),
     ui_link('record.php', 'trophy', 'Record &amp; Leaderboards'),
 ]);
 echo ui_group('Shop', [

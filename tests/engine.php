@@ -34,6 +34,8 @@ require 'engine/mods/Trade.php';
 require 'engine/mods/Invest.php';
 require 'engine/mods/Profile.php';
 require 'engine/mods/Home.php';
+require 'engine/mods/Marriage.php';
+require 'engine/mods/Auction.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -803,6 +805,71 @@ $db->exec('UPDATE `userstats` SET `strength` = 10 WHERE `userid` = 3');
 $n = 0;
 check($r['strength'] === 1 && $r['total'] === 1 && $r2['strength'] === 2 && $r2['total'] === 2 && $r2['agility'] === 1 && once('t', function () use (&$n) { return ++$n; }) === 1 && once('t', function () use (&$n) { return ++$n; }) === 1 && $n === 1,
     'ranks for all the battle stats come from one query, and once() works a thing out one time only', [$r, $r2]);
+
+// marriage
+foreach (['v3_proposals', 'v3_spouses', 'v3_joint', 'events', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 20000, `maxwill` = 100, `will` = 100');
+$db->exec('UPDATE `users` SET `maxwill` = 250, `will` = 250 WHERE `userid` = 3');
+check(marriage_propose(2, 2) !== null && marriage_propose(2, 99999) !== null && marriage_propose(2, 3) === null && $bal(2)['money'] === 10000 && marriage_propose(2, 4) !== null && $bal(2)['money'] === 10000,
+    'a proposal costs a ring, and a player can have one proposal out at a time');
+check(marriage_unpropose(4, 2) === false && marriage_unpropose(3, 2) && $bal(2)['money'] === 20000 && !marriage_unpropose(3, 2) && $bal(2)['money'] === 20000, 'only the two involved can end a proposal, and the ring is refunded once');
+marriage_propose(2, 3);
+marriage_propose(4, 3);
+check(marriage_accept(3, 2) === null && (int)marriage_spouse(2)['spouse'] === 3 && (int)marriage_spouse(3)['spouse'] === 2 && marriage_accept(3, 4) !== null && $bal(4)['money'] === 20000 && marriage_spouse(4) === null
+    && marriage_propose(4, 2) !== null, 'accepting marries the two, and the other suitor is turned away with their ring money back');
+check(marriage_deposit(2, 6000) && marriage_joint(2, 3) === 6000 && marriage_joint(3, 2) === 6000 && !marriage_deposit(2, 999999) && marriage_withdraw(3, 1000) && $bal(3)['money'] === 21000 && !marriage_withdraw(3, 5001)
+    && marriage_joint(2, 3) === 5000 && !marriage_deposit(4, 10), 'either spouse can pay into and draw on the joint account, never past what it holds');
+check(marriage_move_in(3) !== null && marriage_move_in(2) === null && (int)$user(2)['maxwill'] === 250 && marriage_is_guest(2) && marriage_move_in(2) !== null && marriage_move_in(3) !== null,
+    'the spouse with the lesser house can move in and takes on the better will bar; the owner cannot move into theirs');
+$db->exec('UPDATE `users` SET `maxwill` = 400 WHERE `userid` = 3');
+marriage_house_sync(3);
+$up = (int)$user(2)['maxwill'];
+$db->exec('UPDATE `users` SET `maxwill` = 100 WHERE `userid` = 3');
+marriage_house_sync(3);
+check($up === 400 && (int)$user(2)['maxwill'] === 100 && !marriage_is_guest(2), 'when the owner trades up the guest goes with them; when the owner sells, the guest is back in their own house');
+$db->exec('UPDATE `users` SET `maxwill` = 250 WHERE `userid` = 3');
+marriage_move_in(2);
+check(marriage_divorce(2) !== null && marriage_spouse(2) !== null && marriage_is_guest(2) && marriage_joint(2, 3) === 5000, 'a divorce the filer cannot pay for changes nothing: still married, still living together');
+$db->exec('UPDATE `users` SET `money` = 20000 WHERE `userid` = 2');
+$m2 = $bal(2)['money'];
+$m3 = $bal(3)['money'];
+check(marriage_divorce(2) === null && marriage_spouse(2) === null && marriage_spouse(3) === null && (int)$user(2)['maxwill'] === 100 && $bal(2)['money'] === $m2 - MCC_DIVORCE_PRICE + 2500 && $bal(3)['money'] === $m3 + 2500
+    && marriage_divorce(2) !== null && (int)$db->value('SELECT COUNT(*) FROM `v3_joint`') === 0, 'divorce costs the one who files, splits the joint account, and sends a guest home');
+
+// the auction house
+foreach (['v3_auctions', 'inventory', 'events', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 10000, `maxwill` = 100, `will` = 100');
+item_add(2, 4, 3);
+$inv = (int)$db->value('SELECT `inv_id` FROM `inventory` WHERE `inv_userid` = 2');
+check(is_string(auction_list(2, $inv, 4, 100, 24)) && is_string(auction_list(2, $inv, 1, 0, 24)) && is_string(auction_list(2, $inv, 1, 100, 5)) && is_string(auction_list(3, $inv, 1, 100, 24)) && $held(2, 4) === 3,
+    'you can only auction what you hold, at a real price, for one of the set times');
+$aid = auction_list(2, $inv, 2, 1000, 1);
+check(is_int($aid) && $held(2, 4) === 1, 'listing takes the items out of the inventory');
+$now = time();
+check(auction_bid(2, $aid, 5000) !== null && auction_bid(3, $aid, 999) !== null && auction_bid(3, $aid, 1000, $now) === null && $bal(3)['money'] === 9000 && auction_bid(3, $aid, 2000, $now) !== null
+    && auction_bid(4, $aid, 1049, $now) !== null && auction_bid(4, $aid, 1050, $now) === null && $bal(3)['money'] === 10000 && $bal(4)['money'] === 8950 && auction_bid(4, $aid, 99999, $now) !== null,
+    'a bid is paid when made, must beat the last by 5%, and being outbid returns the money at once');
+check(!auction_cancel(2, $aid) && !auction_cancel(3, $aid), 'an auction with a bid cannot be taken down');
+$ends = (int)$db->value('SELECT `ends` FROM `v3_auctions` WHERE `id` = ?', [$aid]);
+auction_bid(3, $aid, 1200, $ends - 30);
+check((int)$db->value('SELECT `ends` FROM `v3_auctions` WHERE `id` = ?', [$aid]) === $ends - 30 + MCC_AUCTION_EXTEND && auction_settle($ends) === 0, 'a bid in the last moments pushes the close back, so nobody wins by sniping');
+check(auction_settle($ends + 600) === 1 && auction_settle($ends + 600) === 0 && $held(3, 4) === 2 && $bal(2)['money'] === 10000 + 1140 && $bal(3)['money'] === 8800 && $bal(4)['money'] === 10000
+    && auction_bid(4, $aid, 5000) !== null && $bal(4)['money'] === 10000, 'at the close the winner gets the items and the seller the bid less 5%, once; a closed auction takes no bids');
+$aid2 = auction_list(2, (int)$db->value('SELECT `inv_id` FROM `inventory` WHERE `inv_userid` = 2'), 1, 500, 1);
+check(auction_cancel(3, $aid2) === false && auction_cancel(2, $aid2) && !auction_cancel(2, $aid2) && $held(2, 4) === 1, 'with no bids the seller, and only the seller, can take it down and gets the item back once');
+$aid3 = auction_list(2, (int)$db->value('SELECT `inv_id` FROM `inventory` WHERE `inv_userid` = 2'), 1, 500, 1);
+auction_settle(time() + 4000);
+check($held(2, 4) === 1 && $db->value('SELECT `status` FROM `v3_auctions` WHERE `id` = ?', [$aid3]) === 'expired', 'an auction nobody bid on returns the item');
+$total = $bal(2)['money'] + $bal(3)['money'] + $bal(4)['money'];
+check($total === 30000 - 60, 'across the whole sale the only money that left the game is the house\'s cut', $total);
+foreach (['v3_auctions', 'inventory', 'events', 'v3_ledger', 'v3_proposals', 'v3_spouses', 'v3_joint'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `maxwill` = 100, `will` = 100, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

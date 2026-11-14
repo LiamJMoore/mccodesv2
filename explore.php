@@ -38,6 +38,7 @@ echo $section('Rivals and gangs', [
     ui_card('bounties.php', 'crosshair', 'Hitlist', 'Players with a price on their head.', 'pink'),
     ui_card('turf.php', 'flag', 'Territory', 'Hold a city, get paid every Monday.', 'cyan'),
     ui_card('gangcentral.php', 'users', 'Gangs', 'Join one, or start your own.'),
+    ui_card('marriage.php', 'heart', 'Marriage', 'A joint account and a shared house.'),
     ui_card('gangwars.php', 'swords', 'Gang Wars', 'Who is fighting whom.'),
     ui_card('fedjail.php', 'bars', 'Federal Jail', 'Where the cheats end up.'),
 ]);
@@ -46,6 +47,7 @@ echo $section('Shops and markets', [
     ui_card('itemmarket.php', 'bag', 'Item Market', 'Buy from and sell to other players.'),
     ui_card('cmarket.php', 'gem', 'Crystal Market', 'Crystals for cash, player to player.'),
     ui_card('craft.php', 'hammer', 'Workshop', 'Turn items into better ones.'),
+    ui_card('auction.php', 'ticket', 'Auction House', 'Bid on what other players are selling.'),
     ui_card('estate.php', 'home', 'Estate Agent', 'A bigger house means more will.'),
     ui_card('monorail.php', 'plane', 'Travel Agency', 'Take the monorail to another city.', 'cyan'),
 ]);

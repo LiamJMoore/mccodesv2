@@ -35,6 +35,10 @@ function profile_card(array $r): string
     }
     $out .= "<div class='season-head'><div><small>Level</small><b>{$r['level']}</b></div><div><small>Rank</small><b>" . e(profile_rank((int)$r['level'])) . "</b></div><div><small>Days in the game</small><b>" . number_format($days)
         . "</b></div><div><small>Medals</small><b>" . count($earned) . '</b></div><div><small>Status</small><b>' . ((int)$r['laston'] >= time() - 900 ? 'Online' : 'Offline') . '</b></div></div>';
+    $sp = function_exists('marriage_spouse') ? marriage_spouse($id) : null;
+    if ($sp !== null) {
+        $out .= "<p class='profile-spouse'>Married to <a href='viewuser.php?u={$sp['spouse']}'>" . e((string)$sp['username']) . '</a> for ' . number_format(intdiv(time() - (int)$sp['since'], 86400)) . ' days.</p>';
+    }
     if ($earned) {
         arsort($earned);
         $out .= "<div class='profile-medals'>";

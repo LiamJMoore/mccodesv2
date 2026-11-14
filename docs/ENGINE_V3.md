@@ -112,6 +112,9 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Travel trading | `trade.php` | `Trade.php` | Each city makes three goods worth 35% more elsewhere; limited shelves, a carry limit and a daily customs allowance |
 | Investments | `invest.php` | `Invest.php` | Lock money away for 7, 14 or 30 days for interest; out early pays no interest; one at a time, capped by level |
 | Profiles | `viewuser.php` | `Profile.php` | Rank title, days in the game, medals, a hospital or jail banner, and comments |
+| Ledger | `ledger.php`, `staff_ledger.php` | `Economy.php` | Every money and crystal change, with the page it came from; a statement for players, an audit view for staff |
+| Marriage | `marriage.php` | `Marriage.php` | Propose with a ring, a joint account, live together in the better house (only its owner can sell it) |
+| Auction house | `auction.php` | `Auction.php` | Bids are paid when made and returned when beaten; 5% of each sale leaves the game |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:
