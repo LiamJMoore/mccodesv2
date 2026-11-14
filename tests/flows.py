@@ -1453,6 +1453,60 @@ def merits(srv):
     sql("DELETE FROM v3_achievements")
 
 
+
+def enterprise(srv):
+    print("Businesses, market stalls, fame")
+    tables = ("v3_business", "v3_stalls", "v3_stall_stock", "inventory", "events", "v3_ledger", "v3_travel")
+    for t in tables:
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 150000, level = 5, hospital = 0, jail = 0, location = 1")
+    out = many(srv, "player1", "playerpass1", 6, "/business.php", {"do": "buy", "kind": "shop"}, token_path="/business.php")
+    check(sum("It is yours" in x for x in out) == 1 and balances(2)["money"] == 50000 and one("SELECT COUNT(*) FROM v3_business") == "1", "six logins buying a business at once: one, paid for once", balances(2)["money"])
+    sql("UPDATE v3_business SET collected = collected - 5 * 3600 - 60")
+    out = many(srv, "player1", "playerpass1", 6, "/business.php", {"do": "collect"}, token_path="/business.php")
+    check(sum("You collected $625" in x for x in out) == 1 and balances(2)["money"] == 50625, "six logins emptying the till at once: paid once", balances(2)["money"])
+    sql("UPDATE v3_business SET collected = collected - 30 * 3600")
+    a = Session(srv.base)
+    a.login("player1", "playerpass1")
+    _, _, body = a.get("/index.php")
+    check("Your till is full" in body, "the dashboard says when the till is full")
+    out = many(srv, "player1", "playerpass1", 6, "/business.php", {"do": "sell"}, token_path="/business.php")
+    check(balances(2)["money"] == 50625 + 3000 + 50000 and one("SELECT COUNT(*) FROM v3_business") == "0", "six logins selling up at once: paid once", balances(2)["money"])
+    # stalls
+    sql("UPDATE users SET money = 30000")
+    sql("INSERT INTO inventory (inv_itemid, inv_userid, inv_qty) VALUES (4, 2, 3)")
+    out = many(srv, "player1", "playerpass1", 6, "/stall.php?mine", {"do": "open", "name": "Trophy <i>Cabinet</i>"}, token_path="/stall.php?mine")
+    check(balances(2)["money"] == 5000 and one("SELECT name FROM v3_stalls") == "Trophy Cabinet", "six logins opening a stall at once: one pitch fee", balances(2)["money"])
+    inv_id = one("SELECT inv_id FROM inventory WHERE inv_userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/stall.php?mine", {"do": "add", "inv": inv_id, "qty": "3", "price": "2000"}, token_path="/stall.php?mine")
+    check(one("SELECT qty FROM v3_stall_stock") == "3" and inv(2, 4) == 0, "six logins stocking the same three items at once: three on the stall", one("SELECT qty FROM v3_stall_stock"))
+    line = one("SELECT id FROM v3_stall_stock")
+    b = Session(srv.base)
+    b.login("player2", "playerpass2")
+    _, _, body = b.get("/stall.php")
+    _, _, found = b.get("/stall.php?find=troph")
+    check("Trophy Cabinet" in body and "$2,000" in found, "the market lists the stall and finds its goods by name")
+    b.get(f"/stall.php?u=2&do=buy&line={line}&qty=1&price=2000")
+    check(inv(3, 4) == 0, "a link cannot buy")
+    # two buyers, six requests each, for a line of three at $2,000: at most three are sold, each paid for
+    import threading as _t
+    res = {}
+    def go(name, user, pw):
+        res[name] = many(srv, user, pw, 6, "/stall.php?u=2", {"do": "buy", "line": line, "qty": "2", "price": "2000"}, token_path="/stall.php?u=2")
+    ts = [_t.Thread(target=go, args=("b", "player2", "playerpass2")), _t.Thread(target=go, args=("c", "player3", "playerpass3"))]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    sold = inv(3, 4) + inv(4, 4)
+    left = int(one("SELECT COALESCE(SUM(qty), 0) FROM v3_stall_stock"))
+    check(sold == 2 and left == 1 and balances(2)["money"] == 5000 + 4000 and balances(3)["money"] + balances(4)["money"] == 60000 - 4000, "twelve purchases of two from a line of three: one sale, paid for once", (sold, left, balances(2)["money"]))
+    _, _, body = a.get("/viewuser.php?u=2")
+    _, _, fame = a.get("/fame.php")
+    check("Runs the stall" in body and "Reputation" in body and "Your fame" in fame, "the profile shows the stall and reputation; the fame page loads")
+    for t in tables:
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, level = 1, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1492,6 +1546,7 @@ def main():
         lending(srv)
         lists(srv)
         merits(srv)
+        enterprise(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

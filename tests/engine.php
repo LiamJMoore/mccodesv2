@@ -41,6 +41,9 @@ require 'engine/mods/Tickets.php';
 require 'engine/mods/Contacts.php';
 require 'engine/mods/Merits.php';
 require 'engine/mods/Travel.php';
+require 'engine/mods/Business.php';
+require 'engine/mods/Fame.php';
+require 'engine/mods/Stalls.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -1008,6 +1011,58 @@ foreach (['v3_travel', 'v3_vehicles', 'v3_ledger'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `location` = 1');
+
+// businesses
+foreach (['v3_business', 'v3_stalls', 'v3_stall_stock', 'inventory', 'events', 'v3_ledger', 'v3_progress', 'v3_achievements'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 200000');
+$bt = 1950000000;
+check(business_buy(2, 'bank', 99, $bt) !== null && business_buy(2, 'shop', 4, $bt) !== null && business_buy(2, 'garage', 15, $bt) !== null && $bal(2)['money'] === 200000 && business_of(2) === null,
+    'a business needs the level and the money; a refusal costs nothing');
+check(business_buy(2, 'shop', 5, $bt) === null && $bal(2)['money'] === 100000 && business_buy(2, 'shop', 5, $bt) !== null && $bal(2)['money'] === 100000, 'one business a player, paid for once');
+check(business_collect(2, $bt + 3599) === 0 && business_of(2, $bt + 3 * 3600 + 900)['pending'] === 375 && business_collect(2, $bt + 3 * 3600 + 900) === 375 && $bal(2)['money'] === 100375
+    && business_collect(2, $bt + 3 * 3600 + 1000) === 0 && business_collect(2, $bt + 4 * 3600) === 125, 'the till fills by the whole hour, pays once, and keeps the part-hour already worked');
+check(business_of(2, $bt + 90 * 3600)['hours'] === 24 && business_collect(2, $bt + 90 * 3600) === 3000 && business_of(2, $bt + 90 * 3600 + 1800)['hours'] === 0, 'the till holds a day and no more');
+$m = $bal(2)['money'];
+check(business_upgrade(2, $bt + 92 * 3600) === null && $bal(2)['money'] === $m + 250 - 50000 && business_of(2, $bt + 92 * 3600)['hourly'] === 150 && business_of(2, $bt + 92 * 3600)['pending'] === 0 && business_upgrade(3) !== null,
+    'an upgrade empties the till at the old rate, costs half the price, and raises the takings by a fifth');
+$db->exec('UPDATE `users` SET `money` = 0 WHERE `userid` = 2');
+check(business_upgrade(2, $bt + 93 * 3600) !== null && business_of(2, $bt + 93 * 3600)['level'] === 2 && business_of(2, $bt + 93 * 3600)['pending'] === 150, 'an upgrade you cannot afford changes nothing, the till included');
+check(business_sell(2, $bt + 93 * 3600) === 50150 && business_sell(2, $bt + 93 * 3600) === 0 && $bal(2)['money'] === 50150 && business_of(2) === null, 'selling pays the till and half the purchase price, once');
+
+// fame
+check(fame_of(2)['total'] === 0 && fame_reputation(0) === 'Unknown' && fame_reputation(99) === 'Unknown' && fame_reputation(100) === 'Talked About' && fame_reputation(999999) === 'Legendary' && fame_next(60000) === null
+    && fame_next(450) === ['at' => 500, 'name' => 'Known', 'need' => 50] && fame_top() === [], 'fame starts at nothing, and reputations change at their thresholds');
+$db->exec("INSERT INTO `v3_progress` (`userid`, `stat`, `amount`) VALUES (2, 'fights_won', 10), (2, 'crimes', 40), (2, 'crime_money', 999999), (3, 'bounties', 2), (1, 'fights_won', 5000)");
+$db->exec("INSERT INTO `v3_achievements` (`userid`, `ach`, `earned`) VALUES (2, 'crimes_10', 1), (2, 'gone_now', 1), (3, 'fights_1', 1)");
+$top = fame_top();
+check(fame_of(2)['total'] === 140 && fame_of(3)['total'] === 90 && (int)$top[0]['userid'] === 1 && (int)$top[1]['userid'] === 2 && (int)$top[1]['fame'] === 140 && (int)$top[2]['fame'] === 90 && count($top) === 3,
+    'fame is counted from deeds and achievements, money made does not count, and the board agrees with the profile', [fame_of(2)['total'], $top]);
+
+// market stalls
+$db->exec('UPDATE `users` SET `money` = 30000');
+item_add(2, 4, 5);
+$inv2 = (int)$db->value('SELECT `inv_id` FROM `inventory` WHERE `inv_userid` = 2');
+check(stall_add(2, $inv2, 1, 100) !== null && stall_open(2, 'ab') !== null && stall_open(2, ' <b>Trophy</b>   Cabinet ') === null && stall_of(2)['name'] === 'Trophy Cabinet' && $bal(2)['money'] === 5000 && stall_open(2, 'Another') !== null
+    && $bal(2)['money'] === 5000, 'a stall costs the pitch fee once, has a plain-text name, and you need one before you can stock it');
+check(stall_add(2, $inv2, 9, 100) !== null && stall_add(3, $inv2, 1, 100) !== null && stall_add(2, $inv2, 3, 0) !== null && stall_add(2, $inv2, 3, 400) === null && $held(2, 4) === 2 && stall_add(2, $inv2, 1, 500) === null
+    && stall_stock(2)[0]['qty'] == 4 && stall_stock(2)[0]['price'] == 500 && count(stall_stock(2)) === 1, 'you stock only what you hold; more of the same joins the line at the new price');
+$line = (int)stall_stock(2)[0]['id'];
+check(stall_buy(2, $line, 1, 500) !== null && stall_buy(3, $line, 1, 400) !== null && stall_buy(3, $line, 9, 500) !== null && stall_buy(3, $line, 0, 500) !== null && $bal(3)['money'] === 30000 && $held(3, 4) === 0,
+    'you cannot buy from yourself, at a price you did not see, or more than is there');
+check(stall_buy(3, $line, 3, 500) === null && $bal(3)['money'] === 28500 && $bal(2)['money'] === 6500 && $held(3, 4) === 3 && (int)stall_stock(2)[0]['qty'] === 1 && (int)$db->value('SELECT COUNT(*) FROM `events` WHERE `evUSER` = 2') === 1,
+    'a sale moves the items and the money together and tells the owner');
+$db->exec('UPDATE `users` SET `money` = 100 WHERE `userid` = 4');
+check(stall_buy(4, $line, 1, 500) !== null && $held(4, 4) === 0 && (int)stall_stock(2)[0]['qty'] === 1 && !stall_close(2) && !stall_remove(3, $line) && stall_remove(2, $line) && !stall_remove(2, $line) && $held(2, 4) === 2 && stall_stock(2) === [],
+    'a buyer without the money gets nothing; only the owner can take stock back, once');
+check(stall_find('troph') === [] && stall_directory() === [] && !stall_close(3) && stall_close(2) && stall_of(2) === null, 'an empty stall is not in the market, and can be closed by its owner');
+$tot = $bal(2)['money'] + $bal(3)['money'] + $bal(4)['money'];
+check($tot === 6500 + 28500 + 100 && $held(2, 4) + $held(3, 4) === 5, 'across the stall, no money or items appeared or vanished', $tot);
+foreach (['v3_business', 'v3_stalls', 'v3_stall_stock', 'inventory', 'events', 'v3_ledger', 'v3_progress', 'v3_achievements'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

@@ -120,6 +120,9 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Friends, black list, contacts | `friendslist.php`, `blacklist.php`, `contactlist.php` | `Contacts.php` | The v2 lists on one safe piece of code; also the mugger of the hour |
 | Merits | `merits.php` | `Merits.php` | One merit per achievement, spent on four small permanent upgrades (daily reward, mission pay, auction cut, loan interest) |
 | Travel time and vehicles | `monorail.php`, `vehicles.php` | `Travel.php` | A journey takes 5 minutes by monorail ($1,000) or 4 to 1 minutes in your own vehicle (no fare). While travelling only mail, events, forums and account pages work, and you cannot be attacked |
+| Businesses | `business.php` | `Business.php` | One per player; earns by the hour into a till that holds a day; five levels; set to pay back in a month or more |
+| Market stalls | `stall.php` | `Stalls.php` | A player's own named shop front, stocked from their inventory at their prices; $25,000 to open |
+| Fame | `fame.php` | `Fame.php` | One number worked out from deeds and achievements, with a reputation; shown on profiles; cannot be bought |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:

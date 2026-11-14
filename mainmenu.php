@@ -50,6 +50,7 @@ echo ui_group('Rewards', [
     ui_link('season.php', 'star', 'Season Pass', $mcc_season, $mcc_season > 0),
     ui_link('achievements.php', 'medal', 'Achievements'),
     ui_link('merits.php', 'star', 'Merits'),
+    ui_link('fame.php', 'trophy', 'Fame'),
 ]);
 echo ui_group('Money', [
     ui_link('trade.php', 'crate', 'Trading Post'),
@@ -59,6 +60,8 @@ echo ui_group('Money', [
     ui_link('lottery.php', 'ticket', 'Lottery'),
     ui_link('craft.php', 'hammer', 'Workshop'),
     ui_link('auction.php', 'ticket', 'Auction House'),
+    ui_link('stall.php', 'crate', 'Market Stalls'),
+    ui_link('business.php', 'briefcase', 'Your Business'),
 ]);
 echo ui_group('Rivals', [
     ui_link('bounties.php', 'crosshair', 'Hitlist'),

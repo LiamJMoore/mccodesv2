@@ -27,6 +27,7 @@ echo $section('Make money', [
     ui_card('job.php', 'briefcase', 'Your Job', 'A steady wage and a career.'),
     ui_card('bank.php', 'bank', 'City Bank', 'Keep your money safe from muggers.'),
     ui_card('loanshark.php', 'bank', 'Loan Shark', 'Cash now, more back later.'),
+    ui_card('business.php', 'briefcase', 'Your Business', 'Buy one, collect the takings every day.', 'gold'),
     $ir['location'] == 5 ? ui_card('cyberbank.php', 'bank', 'Cyber Bank', 'An offshore account.') : '',
 ]);
 echo $section('Get stronger', [
@@ -50,6 +51,7 @@ echo $section('Shops and markets', [
     ui_card('cmarket.php', 'gem', 'Crystal Market', 'Crystals for cash, player to player.'),
     ui_card('craft.php', 'hammer', 'Workshop', 'Turn items into better ones.'),
     ui_card('auction.php', 'ticket', 'Auction House', 'Bid on what other players are selling.'),
+    ui_card('stall.php', 'crate', 'Market Stalls', 'Players selling from their own shop fronts.'),
     ui_card('estate.php', 'home', 'Estate Agent', 'A bigger house means more will.'),
     ui_card('monorail.php', 'plane', 'Travel Agency', 'Take the monorail to another city.', 'cyan'),
     ui_card('vehicles.php', 'plane', 'Garage', 'Your own vehicle: no ticket, quicker journeys.'),

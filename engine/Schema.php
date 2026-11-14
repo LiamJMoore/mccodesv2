@@ -365,6 +365,28 @@ const MCC_SCHEMA_STEPS = [
               `vehicle` VARCHAR(20) NOT NULL,
               `bought` INT NOT NULL
           ) ENGINE=InnoDB'],
+    // 22: businesses and market stalls
+    22 => ['CREATE TABLE IF NOT EXISTS `v3_business` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `kind` VARCHAR(20) NOT NULL,
+              `level` TINYINT NOT NULL DEFAULT 1,
+              `bought` INT NOT NULL,
+              `collected` INT NOT NULL
+          ) ENGINE=InnoDB',
+          'CREATE TABLE IF NOT EXISTS `v3_stalls` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `name` VARCHAR(40) NOT NULL,
+              `opened` INT NOT NULL
+          ) ENGINE=InnoDB',
+          'CREATE TABLE IF NOT EXISTS `v3_stall_stock` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `userid` INT NOT NULL,
+              `item` INT NOT NULL,
+              `qty` INT NOT NULL,
+              `price` BIGINT NOT NULL,
+              UNIQUE KEY `one_line` (`userid`, `item`),
+              KEY `by_item` (`item`, `price`)
+          ) ENGINE=InnoDB'],
 ];
 
 function schema_latest(): int
