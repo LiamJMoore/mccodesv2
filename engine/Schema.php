@@ -155,6 +155,33 @@ const MCC_SCHEMA_STEPS = [
               `uses` INT NOT NULL DEFAULT 0,
               PRIMARY KEY (`userid`, `day`, `perk`)
           ) ENGINE=InnoDB"],
+    // 11: the stock market
+    11 => ["CREATE TABLE IF NOT EXISTS `v3_stocks` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `symbol` VARCHAR(8) NOT NULL,
+              `name` VARCHAR(60) NOT NULL,
+              `price` INT NOT NULL,
+              `prev` INT NOT NULL,
+              `base` INT NOT NULL,
+              `swing` INT NOT NULL,
+              UNIQUE KEY `symbol` (`symbol`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_stock_holdings` (
+              `userid` INT NOT NULL,
+              `stock` INT NOT NULL,
+              `shares` BIGINT NOT NULL DEFAULT 0,
+              `cost` BIGINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `stock`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_stock_history` (
+              `stock` INT NOT NULL,
+              `at` INT NOT NULL,
+              `price` INT NOT NULL,
+              PRIMARY KEY (`stock`, `at`)
+          ) ENGINE=InnoDB",
+          "INSERT IGNORE INTO `v3_stocks` (`symbol`, `name`, `price`, `prev`, `base`, `swing`) VALUES ('BRIX', 'Brixton Scrap & Salvage', 120, 120, 120, 25), ('NEON', 'Neon Row Casinos', 850, 850, 850, 45), ('DOCK', 'Eastdock Freight', 310, 310, 310, 20), ('PAWN', 'Golden Pawn Holdings', 65, 65, 65, 35), ('VLT', 'Vault Street Security', 1400, 1400, 1400, 15), ('RUSH', 'Rush Courier Co', 40, 40, 40, 60), ('IRON', 'Ironworks Gym Group', 520, 520, 520, 30), ('SMOK', 'Smokestack Brewing', 215, 215, 215, 40)",
+          "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_stock_tick', '0', 'int' FROM DUAL
+           WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_stock_tick')"],
 ];
 
 function schema_latest(): int

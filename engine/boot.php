@@ -34,6 +34,7 @@ require_once __DIR__ . '/mods/Crafting.php';
 require_once __DIR__ . '/mods/Season.php';
 require_once __DIR__ . '/mods/Store.php';
 require_once __DIR__ . '/mods/Perks.php';
+require_once __DIR__ . '/mods/Stocks.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';

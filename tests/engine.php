@@ -26,6 +26,7 @@ require 'engine/mods/Crafting.php';
 require 'engine/mods/Season.php';
 require 'engine/mods/Store.php';
 require 'engine/mods/Perks.php';
+require 'engine/mods/Stocks.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -548,6 +549,43 @@ foreach (['v3_perks', 'v3_perk_uses', 'v3_missions'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `crystals` = 10, `brave` = 5, `will` = 100');
+
+// the stock market
+$db->exec('DELETE FROM `v3_stock_holdings`');
+$db->exec('DELETE FROM `v3_stock_history`');
+$db->exec('UPDATE `v3_stocks` SET `price` = `base`, `prev` = `base`');
+$sid = (int)$db->value("SELECT `id` FROM `v3_stocks` WHERE `symbol` = 'BRIX'");
+$lo = PHP_INT_MAX;
+$hi = 0;
+$p = 120;
+for ($i = 0; $i < 20000; $i++) {
+    $p = stock_step($p, 120, 25);
+    $lo = min($lo, $p);
+    $hi = max($hi, $p);
+}
+check($lo >= 60 && $hi <= 240 && $lo < 110 && $hi > 130 && stock_step(1, 100000, 0) >= 1, 'a price wanders, but the pull towards its long-run level keeps it within reach of it', [$lo, $hi]);
+$db->exec("UPDATE `settings` SET `conf_value` = '1000' WHERE `conf_name` = 'engine_stock_tick'");
+$t = 1003 * MCC_STOCK_TICK + 5;
+check(stocks_tick($t) === 3 && stocks_tick($t) === 0 && (int)$db->value('SELECT COUNT(*) FROM `v3_stock_history` WHERE `stock` = ?', [$sid]) === 3 && stocks_tick($t + MCC_STOCK_TICK) === 1
+    && stocks_tick($t + 5000 * MCC_STOCK_TICK) === MCC_STOCK_CATCHUP, 'prices move once per tick, missed ticks are replayed (up to a day), and each leaves a point of history');
+$db->exec('UPDATE `v3_stocks` SET `price` = 100, `prev` = 100 WHERE `id` = ?', [$sid]);
+$db->exec('UPDATE `users` SET `money` = 10000 WHERE `userid` = 2');
+$b = stock_buy(2, $sid, 20, 1);
+check($b === ['shares' => 20, 'price' => 100, 'paid' => 2030, 'fee' => 30] && $bal(2)['money'] === 7970 && (int)stocks_list(2)[0]['shares'] === 20 && (int)stocks_list(2)[0]['cost'] === 2000, 'buying takes the price of the shares plus the fee', $b);
+check(is_string(stock_buy(2, $sid, 31, 1)) && is_string(stock_buy(2, $sid, 0, 1)) && is_string(stock_buy(2, 99999, 1, 1)) && $bal(2)['money'] === 7970 && is_array(stock_buy(2, $sid, 30, 1))
+    && is_string(stock_buy(2, $sid, 1, 1)), 'a player cannot hold more shares of a company than their level allows');
+$db->exec('UPDATE `users` SET `money` = 50 WHERE `userid` = 2');
+check(is_string(stock_buy(2, $sid, 1, 9)) && (int)stocks_list(2)[0]['shares'] === 50 && $bal(2)['money'] === 50, 'shares you cannot pay for are not added');
+$db->exec('UPDATE `v3_stocks` SET `price` = 150 WHERE `id` = ?', [$sid]);
+$sold = stock_sell(2, $sid, 20);
+check($sold === ['shares' => 20, 'price' => 150, 'got' => 2955, 'fee' => 45, 'profit' => 955] && $bal(2)['money'] === 3005 && (int)stocks_list(2)[0]['shares'] === 30 && (int)stocks_list(2)[0]['cost'] === 3000
+    && is_string(stock_sell(2, $sid, 31)) && is_string(stock_sell(3, $sid, 1)) && $bal(2)['money'] === 3005, 'selling pays the price less the fee, reports the profit, and you cannot sell shares you do not hold', $sold);
+check(str_contains(stock_spark([100, 120, 90, 130], true), '<polyline') && stock_spark([100], true) === '' && stock_cap(7) === 7 * MCC_STOCK_SHARES_PER_LEVEL, 'a day of prices draws as a small line');
+$db->exec('DELETE FROM `v3_stock_holdings`');
+$db->exec('DELETE FROM `v3_stock_history`');
+$db->exec('UPDATE `v3_stocks` SET `price` = `base`, `prev` = `base`');
+$db->run("UPDATE `settings` SET `conf_value` = ? WHERE `conf_name` = 'engine_stock_tick'", [(string)intdiv(time(), MCC_STOCK_TICK)]);
+$db->exec('UPDATE `users` SET `money` = 100');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

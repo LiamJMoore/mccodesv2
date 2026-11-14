@@ -1053,6 +1053,33 @@ def crystalshop(srv):
     sql("UPDATE users SET crystals = 10, brave = 5")
 
 
+def stocks(srv):
+    print("Stock market")
+    sql("DELETE FROM v3_stock_holdings")
+    sql("UPDATE v3_stocks SET price = 100, prev = 100 WHERE symbol = 'BRIX'")
+    sql(f"UPDATE settings SET conf_value = '{int(__import__('time').time()) // 900 + 4}' WHERE conf_name = 'engine_stock_tick'")   # no price move during the test
+    sid = one("SELECT id FROM v3_stocks WHERE symbol = 'BRIX'")
+    sql("UPDATE users SET money = 1015, level = 1 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/stocks.php")
+    check(body.count("name='do' value='buy'") == 8 and "Brixton Scrap" in body, "the market lists eight companies")
+    out = many(srv, "player1", "playerpass1", 8, "/stocks.php", {"do": "buy", "stock": sid, "shares": "10"}, token_path="/stocks.php")
+    held = one(f"SELECT COALESCE(SUM(shares), 0) FROM v3_stock_holdings WHERE userid = 2 AND stock = {sid}")
+    check(sum("<b>Bought</b>" in x for x in out) == 1 and held == "10" and balances(2)["money"] == 0, "eight logins buying 10 shares at once with money for one lot: one lot is bought", (held, balances(2)["money"]))
+    sql("UPDATE users SET money = 1000000 WHERE userid = 2")
+    many(srv, "player1", "playerpass1", 8, "/stocks.php", {"do": "buy", "stock": sid, "shares": "30"}, token_path="/stocks.php")
+    held = one(f"SELECT shares FROM v3_stock_holdings WHERE userid = 2 AND stock = {sid}")
+    check(held == "40", "eight logins buying at once with plenty of money: the cap on shares holds", held)
+    sql("UPDATE users SET money = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/stocks.php", {"do": "sell", "stock": sid, "shares": "40"}, token_path="/stocks.php")
+    check(sum("<b>Sold</b>" in x for x in out) == 1 and balances(2)["money"] == 3940 and one(f"SELECT shares FROM v3_stock_holdings WHERE userid = 2 AND stock = {sid}") == "0",
+          "eight logins selling the same 40 shares at once: sold once", balances(2)["money"])
+    sql("DELETE FROM v3_stock_holdings")
+    sql("UPDATE v3_stocks SET price = base, prev = base")
+    sql("UPDATE users SET money = 100, level = 1")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1081,6 +1108,7 @@ def main():
         season(srv)
         store(srv)
         crystalshop(srv)
+        stocks(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
