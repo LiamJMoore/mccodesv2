@@ -218,6 +218,21 @@ const MCC_SCHEMA_STEPS = [
           ) ENGINE=InnoDB",
           "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_lotto_day', '', 'string' FROM DUAL
            WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_lotto_day')"],
+    // 14: pets
+    14 => ["CREATE TABLE IF NOT EXISTS `v3_pets` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `name` VARCHAR(20) NOT NULL,
+              `type` VARCHAR(20) NOT NULL,
+              `level` INT NOT NULL DEFAULT 1,
+              `xp` INT NOT NULL DEFAULT 0,
+              `speed` INT NOT NULL DEFAULT 10,
+              `stamina` INT NOT NULL DEFAULT 10,
+              `last_fed` INT NOT NULL DEFAULT 0,
+              `last_trained` INT NOT NULL DEFAULT 0,
+              `races` INT NOT NULL DEFAULT 0,
+              `wins` INT NOT NULL DEFAULT 0,
+              KEY `champions` (`wins`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

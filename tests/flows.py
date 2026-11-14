@@ -1143,6 +1143,30 @@ def lottery(srv):
     sql("UPDATE users SET money = 100, new_events = 0")
 
 
+def pets(srv):
+    print("Pets and races")
+    for t in ("v3_pets", "v3_perk_uses"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 5000, energy = 12, maxenergy = 12 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/pet.php", {"do": "adopt", "type": "greyhound", "name": "Bolt"}, token_path="/pet.php")
+    check(sum("Welcome home" in x for x in out) == 1 and balances(2)["money"] == 0 and one("SELECT COUNT(*) FROM v3_pets") == "1", "eight logins adopting at once: one pet, paid for once")
+    out = many(srv, "player1", "playerpass1", 8, "/pet.php", {"do": "train"}, token_path="/pet.php")
+    e = one("SELECT energy FROM users WHERE userid = 2")
+    stats = one("SELECT speed + stamina FROM v3_pets WHERE userid = 2")
+    check(sum("A good session" in x for x in out) == 1 and e == "7" and 21 <= int(stats) <= 23, "eight logins training at once: one session, one lot of energy", (e, stats))
+    sql("UPDATE users SET money = 200 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/pet.php", {"do": "race"}, token_path="/pet.php")
+    ran = sum("Entry $200" in x for x in out)
+    check(ran >= 1 and one("SELECT races FROM v3_pets WHERE userid = 2") == str(ran) and balances(2)["money"] >= 0, "eight logins racing at once on one entry fee: every race run was paid for", (ran, balances(2)["money"]))
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/pet.php")
+    check("Bolt" in body and "Greyhound" in body and "Champions" in body, "the page shows the pet and the champions table")
+    for t in ("v3_pets", "v3_perk_uses"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, energy = 12")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1174,6 +1198,7 @@ def main():
         stocks(srv)
         turf(srv)
         lottery(srv)
+        pets(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

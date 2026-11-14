@@ -103,6 +103,12 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Staff dashboard | `staff_dashboard.php` | `Dashboard.php` | Totals, a books-balance check, 30-day trends, a watchlist, system health |
 | Season Pass | `season.php` | `Season.php` | A season a month; 30 tiers; a free track and a premium one bought with crystals; nothing random |
 | Installable app | `manifest.webmanifest`, `sw.js` | | The game installs to a phone's home screen and shows a friendly page when offline. Game pages are never stored |
+| Crystal shop | `crystalshop.php` | `Perks.php` | Refills with a daily limit, a name colour, profile badges, a fourth mission |
+| Stock market | `stocks.php` | `Stocks.php` | Eight companies, prices move every 15 minutes; a fee on every trade and a cap on shares by level |
+| Territory | `turf.php` | `Turf.php` | Gangs earn influence in the city they are in; each Monday every city pays its holder's vault |
+| Live sidebar | the sidebar | `js/live.js`, `api.php?do=live` | Money, crystals, level and bars refresh every 20 seconds with no reload |
+| Lottery | `lottery.php` | `Lottery.php` | A daily draw for game money; 80% of ticket money is the pot; a cap on tickets |
+| Pets and races | `pet.php` | `Pets.php` | Adopt, feed and train one animal, and race it against five rivals of its level |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:

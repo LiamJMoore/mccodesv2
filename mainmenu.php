@@ -71,7 +71,7 @@ echo $mcc_daily['claimed']
 echo "<a href='store.php'>Store</a><br /><a href='crystalshop.php'>Crystal Shop</a><br />";
 $mcc_season = season_waiting((int)$ir['userid']);
 echo $mcc_season > 0 ? "<a href='season.php' style='font-weight: bold;'>Season Pass ({$mcc_season})</a><br />" : "<a href='season.php'>Season Pass</a><br />";
-echo "<a href='missions.php'>Missions</a><br /><a href='achievements.php'>Achievements</a><br /><a href='bounties.php'>Hitlist</a><br /><a href='craft.php'>Workshop</a><br /><a href='stocks.php'>Stock Market</a><br /><a href='turf.php'>Territory</a><br /><a href='lottery.php'>Lottery</a><br /><a href='record.php'>Record &amp; Leaderboards</a><br />";
+echo "<a href='missions.php'>Missions</a><br /><a href='achievements.php'>Achievements</a><br /><a href='bounties.php'>Hitlist</a><br /><a href='craft.php'>Workshop</a><br /><a href='stocks.php'>Stock Market</a><br /><a href='turf.php'>Territory</a><br /><a href='lottery.php'>Lottery</a><br /><a href='pet.php'>Your Pet</a><br /><a href='record.php'>Record &amp; Leaderboards</a><br />";
 echo "<a href='forums.php'>Forums</a><br />";
 echo ($ir['new_announcements'])
         ? '<a href="announcements.php" style="font-weight: bold;">Announcements ('

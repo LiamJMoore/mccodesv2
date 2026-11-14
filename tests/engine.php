@@ -29,6 +29,7 @@ require 'engine/mods/Perks.php';
 require 'engine/mods/Stocks.php';
 require 'engine/mods/Turf.php';
 require 'engine/mods/Lottery.php';
+require 'engine/mods/Pets.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -654,6 +655,60 @@ foreach (['v3_lotto_tickets', 'v3_lotto_draws', 'events'] as $t) {
 }
 $db->run("UPDATE `settings` SET `conf_value` = ? WHERE `conf_name` = 'engine_lotto_day'", [date('Y-m-d')]);
 $db->exec('UPDATE `users` SET `money` = 100, `new_events` = 0');
+
+// pets
+foreach (['v3_pets', 'v3_perk_uses'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 20000, `energy` = 12 WHERE `userid` = 2');
+check(pet_adopt(2, 'dragon', 'Rex') !== null && pet_adopt(2, 'hawk', '<b>') !== null && pet_adopt(2, 'hawk', 'X') !== null && pet_of(2) === null && pet_adopt(2, 'hawk', "  Lady  O'Hara ") === null
+    && pet_of(2)['name'] === "Lady O'Hara" && $bal(2)['money'] === 15000 && pet_adopt(2, 'ferret', 'Second') !== null && $bal(2)['money'] === 15000, 'a player adopts one pet, with a sensible name, for the price');
+$now = time();
+check(pet_of(2, $now)['full'] === 100 && pet_of(2, $now + 5 * 3600)['full'] === 80 && pet_of(2, $now + 100 * 3600)['full'] === 0 && pet_feed(2, $now) !== null && pet_feed(2, $now + 10 * 3600) === null
+    && $bal(2)['money'] === 14750 && pet_of(2, $now + 10 * 3600)['full'] === 100, 'a pet gets hungry by the hour, feeding fills it, and a full pet is not fed');
+$tr = pet_train(2, $now + 11 * 3600);
+$p = pet_of(2, $now + 11 * 3600);
+check(is_array($tr) && (int)$p['speed'] + (int)$p['stamina'] === 20 + $tr['gain'] && (int)$p['xp'] === 10 && (int)$user(2)['energy'] === 7 && is_string(pet_train(2, $now + 11 * 3600 + 60))
+    && (int)$user(2)['energy'] === 7 && is_array(pet_train(2, $now + 12 * 3600 + 1)), 'training raises a stat for some energy, and the pet must rest between sessions');
+$db->exec('UPDATE `users` SET `energy` = 0 WHERE `userid` = 2');
+$before = pet_of(2);
+check(is_string(pet_train(2, $now + 20 * 3600)) && (int)pet_of(2)['last_trained'] === (int)$before['last_trained'], 'with no energy there is no session, and the rest period is not used up');
+check(is_string(pet_train(2, $now + 60 * 3600)) && str_contains((string)pet_train(2, $now + 60 * 3600), 'hungry'), 'a hungry pet will not train');
+$db->exec('UPDATE `v3_pets` SET `last_fed` = ?, `xp` = 95 WHERE `userid` = 2', [time()]);
+$db->exec('UPDATE `users` SET `money` = 100000 WHERE `userid` = 2');
+$places = [];
+$spent = 0;
+$won = 0;
+for ($i = 0; $i < MCC_PET_RACES_A_DAY + 2; $i++) {
+    $r = pet_race(2);
+    if (is_array($r)) {
+        $places[] = $r['place'];
+        $spent += $r['fee'];
+        $won += $r['prize'];
+        if (count($r['field']) !== 6 || $r['prize'] !== (int)round($r['fee'] * (MCC_PET_PRIZES[$r['place']] ?? 0))) {
+            $places[] = 99;
+        }
+    }
+}
+$p = pet_of(2);
+check(count($places) === MCC_PET_RACES_A_DAY && max($places) <= 6 && $bal(2)['money'] === 100000 - $spent + $won && (int)$p['races'] === MCC_PET_RACES_A_DAY && (int)$p['level'] >= 2 && is_string(pet_race(2)),
+    'a race has six runners, pays the first three by the table, costs its fee, and there are only so many a day', [$places, $spent, $won]);
+mt_srand(11);
+$back = 0.0;
+for ($i = 0; $i < 4000; $i++) {
+    $me = pet_run(30, 30);
+    $beat = 0;
+    for ($k = 0; $k < 5; $k++) {
+        $beat += pet_run((int)round(30 * mt_rand(85, 115) / 100), (int)round(30 * mt_rand(85, 115) / 100)) > $me ? 1 : 0;
+    }
+    $back += MCC_PET_PRIZES[$beat + 1] ?? 0;
+}
+mt_srand();
+check($back / 4000 > 0.70 && $back / 4000 < 0.95, 'evenly matched, racing pays back less than it costs: it takes money out of the game', round($back / 4000, 3));
+foreach (['v3_pets', 'v3_perk_uses'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `energy` = 12');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

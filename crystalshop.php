@@ -38,11 +38,11 @@ foreach (MCC_PERK_REFILLS as $bar => $r) {
     echo '<tr><td>' . e($r['name']) . '</td><td>' . e($r['what']) . "</td><td>{$r['price']} crystals</td><td>{$used} of {$r['a_day']}</td><td>"
         . ($used >= $r['a_day'] ? 'More tomorrow' : ($full ? 'Bar is full' : $button('refill', $bar, 'Buy'))) . '</td></tr>';
 }
-echo "</table><h4>Name colour</h4><p>" . (isset($own['name_colour']) ? 'You own a name colour. Changing it is free.' : 'Pick a colour for your name, shown on your profile, the hitlist and the leaderboards. ' . MCC_PERK_COLOUR_PRICE . ' crystals, once; changing it afterwards is free.') . '</p><p>';
+echo "</table><h4>Name colour</h4><p>" . (isset($own['name_colour']) ? 'You own a name colour. Changing it is free.' : 'Pick a colour for your name, shown on your profile, the hitlist and the leaderboards. ' . MCC_PERK_COLOUR_PRICE . ' crystals, once; changing it afterwards is free.') . "</p><div style='display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;'>";
 foreach (MCC_PERK_COLOURS as $name => $hex) {
-    echo "<span style='display:inline-block;margin:4px 8px;'><span style='color:{$hex};font-weight:bold;'>" . e((string)$me['username']) . '</span><br />' . $button('colour', $name, $name) . '</span>';
+    echo "<div style='display:flex;flex-direction:column;gap:6px;align-items:center;'><span style='color:{$hex};font-weight:bold;'>" . e((string)$me['username']) . '</span>' . $button('colour', $name, $name) . '</div>';
 }
-echo "</p><h4>Badges</h4><table width='90%' cellspacing='1' class='table'><tr><th>Badge</th><th>Price</th><th></th></tr>";
+echo "</div><h4>Badges</h4><table width='90%' cellspacing='1' class='table'><tr><th>Badge</th><th>Price</th><th></th></tr>";
 foreach (MCC_PERK_BADGES as $key => $b) {
     $owned = isset($own['badge:' . $key]);
     $shown = ($own['badge_shown'] ?? '') === $key;

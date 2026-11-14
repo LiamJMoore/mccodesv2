@@ -37,6 +37,7 @@ require_once __DIR__ . '/mods/Perks.php';
 require_once __DIR__ . '/mods/Stocks.php';
 require_once __DIR__ . '/mods/Turf.php';
 require_once __DIR__ . '/mods/Lottery.php';
+require_once __DIR__ . '/mods/Pets.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';
