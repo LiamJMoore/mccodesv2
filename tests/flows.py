@@ -1216,6 +1216,34 @@ def trading(srv):
     sql("UPDATE users SET money = 100, crystals = 10, location = 1, level = 1, exp = 0, new_events = 0")
 
 
+def home(srv):
+    print("Dashboard")
+    for t in ("events", "v3_daily", "v3_missions", "v3_bounties", "v3_investments", "v3_pets"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 30000, bankmoney = 5000, energy = 12, brave = 5, hp = 20, maxhp = 100, level = 4, gang = 0, new_events = 1 WHERE userid = 2")
+    sql("INSERT INTO events (evUSER, evTIME, evREAD, evTEXT) VALUES (2, UNIX_TIMESTAMP(), 0, 'A test event for the feed')")
+    sql("INSERT INTO v3_bounties (target, placer, amount, anonymous, placed, status) VALUES (2, 3, 7000, 0, UNIX_TIMESTAMP(), 'open')")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/index.php")
+    for needle, what in (("You are badly hurt", "low health"), ("There is a price on your head", "a bounty"), ("$7,000", "the bounty's size"), ("Claim your daily reward", "the unclaimed daily reward"),
+                         ("You have brave to spend", "brave"), ("You have energy to train", "energy"), ("A test event for the feed", "the latest event"), ("$5,000", "the bank balance"),
+                         ("Net worth", "net worth"), ("$35,000", "net worth as pocket plus bank")):
+        check(needle in body, f"the dashboard shows {what}")
+    check(body.index("You are badly hurt") < body.index("You have energy to train"), "the most pressing thing comes first")
+    sql("UPDATE users SET hp = 100, energy = 0, brave = 0, money = 100 WHERE userid = 2")
+    sql("DELETE FROM v3_bounties")
+    s.form("/daily.php", {})
+    _, _, body = s.get("/index.php")
+    check("You are badly hurt" not in body and "price on your head" not in body and "Claim your daily reward</b>" not in body and "You have brave" not in body and "You have energy" not in body,
+          "when those things are dealt with, the dashboard stops suggesting them")
+    _, _, css = s.get("/css/global.css")
+    check("--acc:#D4AF37" in css and "css/global.css" in body, "the pages load the design tokens, and the accent is gold")
+    for t in ("events", "v3_daily", "v3_missions", "v3_progress", "v3_achievements", "v3_season"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, bankmoney = -1, energy = 12, brave = 5, hp = 100, level = 1, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1249,6 +1277,7 @@ def main():
         lottery(srv)
         pets(srv)
         trading(srv)
+        home(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

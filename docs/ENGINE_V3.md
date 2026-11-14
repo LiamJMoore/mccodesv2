@@ -148,18 +148,22 @@ store instead.
 
 ## The look
 
-`css/game.css` ends with the "Engine v3 skin": a slow-moving aurora behind glass panels, buttons whose colour flows
-on hover, cards that lift, and bars that shine. `engine/Ui.php` holds the icon set (drawn in code, so there are no
-icon fonts or image files) and the helpers the menu and the Explore hub are built from:
+Black and charcoal surfaces with one accent, gold.
 
-- `mainmenu.php` builds the menu in groups with `ui_group()` and `ui_link()`; a link shows a count beside it when
-  something is waiting and lights up for the page you are on.
-- `explore.php` is a hub of cards (`ui_card()`), one for every place in the game.
-- On a phone the player card shrinks to a slim header, the menu opens as a sheet, and five links sit in a bar along
-  the bottom.
+- `css/global.css` holds the design tokens: every colour, radius and font, named once. Change the look there.
+- `css/game.css` builds the components from them (shell, menu, cards, tables, forms, buttons, tiles, bars) and
+  restyles the markup the older pages already print, so no page carries its own styling.
+- `engine/Ui.php` holds the icon set (drawn in code: no icon font, no image files) and the helpers the menu and the
+  Explore hub are built from: `ui_link()`, `ui_group()`, `ui_card()`.
+- On a phone the player card is a slim header, the menu opens as a sheet and five links sit in a bar at the bottom.
+- All motion stops when a device asks for reduced motion.
 
-All motion stops for anyone whose device asks for reduced motion. To add a page to the menu or the hub, add one
-`ui_link()` or `ui_card()` line.
+## The dashboard
+
+`index.php` is the command centre: identity, rank and city, cash, bank, crystals and net worth, the four bars,
+"what to do now", today's progress, recent events, battle stats and the notepad. "What to do now" comes from
+`home_suggestions()` in `engine/mods/Home.php`, which reads the player's state (hurt, a bounty on them, an
+unclaimed reward, brave or energy to spend, a matured investment, a hungry pet) and lists the most pressing first.
 
 ## Still on v2 code
 

@@ -158,7 +158,7 @@ function dash_chart(string $title, array $points, string $colour, string $prefix
         $tip = e($p['label'] . ': ' . $prefix . number_format((float)$p['value']));
         // a wide invisible target with the dot inside it, so a point is easy to hover; only the latest dot shows all the time
         $dots .= "<g class='dash-pt" . ($i === $n - 1 ? ' dash-last' : '') . "'><title>{$tip}</title><rect x='" . ($x($i) - 7) . "' y='{$t}' width='14' height='" . ($ht - $t - $b) . "' fill='transparent' />"
-            . "<circle cx='{$x($i)}' cy='{$y((float)$p['value'])}' r='" . ($i === $n - 1 ? 4 : 2.5) . "' fill='{$colour}' stroke='#141B2D' stroke-width='2' /></g>";
+            . "<circle cx='{$x($i)}' cy='{$y((float)$p['value'])}' r='" . ($i === $n - 1 ? 4 : 2.5) . "' fill='{$colour}' stroke='#141416' stroke-width='2' /></g>";
     }
     $grid = '';
     foreach ([$min, $min + $span / 2, $max] as $g) {

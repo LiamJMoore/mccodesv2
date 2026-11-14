@@ -42,6 +42,7 @@ require_once __DIR__ . '/mods/Pets.php';
 require_once __DIR__ . '/mods/Trade.php';
 require_once __DIR__ . '/mods/Invest.php';
 require_once __DIR__ . '/mods/Profile.php';
+require_once __DIR__ . '/mods/Home.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';

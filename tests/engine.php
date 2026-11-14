@@ -410,7 +410,7 @@ check(dash_totals()['broken'] === 1, 'a negative balance is counted as a problem
 $db->exec('UPDATE `users` SET `money` = 100 WHERE `userid` = 3');
 check(dash_snapshot('2026-07-01') && !dash_snapshot('2026-07-01') && dash_snapshot('2026-07-02') && count(dash_history()) === 2 && (int)dash_history()[0]['money'] === 400 && dash_history()[0]['day'] === '2026-07-01',
     'one snapshot is written a day, however often it is asked for, and the history comes back oldest first');
-$svg = dash_chart('Money <b>', [['label' => '1 Jul', 'value' => 100], ['label' => '2 Jul', 'value' => 150]], '#8B74FF', '$');
+$svg = dash_chart('Money <b>', [['label' => '1 Jul', 'value' => 100], ['label' => '2 Jul', 'value' => 150]], '#D4AF37', '$');
 check(str_contains($svg, '<svg') && str_contains($svg, '+50%') && str_contains($svg, '2 Jul: $150') && !str_contains($svg, 'Money <b>') && str_contains(dash_chart('X', [], '#fff'), 'after two days'),
     'a trend is drawn as a chart with its change and a tip on each point, and says so when there is not enough history yet');
 check(dash_short(1234567) === '1.23M' && dash_short(950) === '950' && dash_short(45000) === '45K' && dash_short(2.5e9) === '2.5B', 'large figures are shortened');

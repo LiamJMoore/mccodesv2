@@ -32,10 +32,10 @@ echo "<div class='dash-check " . ($problems === 0 ? 'ok' : 'bad') . "'>" . ($pro
 $hist = dash_history(30);
 $series = fn (string $col): array => array_map(fn ($r) => ['label' => date('j M', strtotime($r['day'])), 'value' => (float)$r[$col]], $hist);
 echo "<h4>The last 30 days</h4><div class='dash-charts'>"
-    . dash_chart('Money in the game', $series('money'), '#8B74FF', '$')
-    . dash_chart('Players active each day', $series('active'), '#22D3EE')
-    . dash_chart('Crystals in the game', $series('crystals'), '#8B74FF')
-    . dash_chart('New players each day', $series('signups'), '#22D3EE')
+    . dash_chart('Money in the game', $series('money'), '#D4AF37', '$')
+    . dash_chart('Players active each day', $series('active'), '#CFCABD')
+    . dash_chart('Crystals in the game', $series('crystals'), '#D4AF37')
+    . dash_chart('New players each day', $series('signups'), '#CFCABD')
     . '</div>';
 if ($hist) {
     echo "<details class='dash-table'><summary>The same figures as a table</summary><table width='90%' cellspacing='1' class='table'><tr><th>Day</th><th>Players</th><th>Active</th><th>New</th><th>Money</th><th>Crystals</th></tr>";

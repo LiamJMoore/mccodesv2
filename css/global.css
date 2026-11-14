@@ -1,0 +1,25 @@
+@charset "ISO-8859-1";
+/* Trench Wars design tokens. Every colour, radius and font the game uses is named here once;
+   css/game.css builds the components from them. Change the look by changing these. */
+:root{
+  --bg:#09090A;            /* the page */
+  --bg2:#141416;           /* raised surfaces: menus, option lists */
+  --panel:rgba(20,20,22,.78);
+  --line:rgba(205,195,165,.12);
+  --line2:rgba(205,195,165,.22);
+  --ink:#F2EFE6;           /* text */
+  --mute:#9A958A;          /* secondary text */
+  --acc:#D4AF37;           /* gold: the one accent */
+  --acc2:#AA822D;          /* deep gold */
+  --acc3:#F0D278;          /* pale gold, for highlights */
+  --gold:#D4AF37;
+  --good:#34D399;          /* status colours: used for meaning, never decoration */
+  --warn:#FBBF24;
+  --bad:#FB7185;
+  --grad:linear-gradient(110deg,#B8892B 0%,#F0D278 50%,#D4AF37 100%);
+  --on-gold:#1A1405;       /* text on a gold surface */
+  --r:16px;
+  --disp:"Space Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
