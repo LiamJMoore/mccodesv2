@@ -70,7 +70,7 @@ else
                                 . $r['donatordays']
                                 . ' Days Left" title="Donator: '
                                 . $r['donatordays'] . ' Days Left" />'
-                        : $r['username'] . ' [' . $r['userid'] . ']';
+                        : perk_name((int) $r['userid'], (string) $r['username']) . ' [' . $r['userid'] . ']';
         $on =
                 ($r['laston'] >= $_SERVER['REQUEST_TIME'] - 15 * 60)
                         ? '<font color="green"><b>Online</b></font>'

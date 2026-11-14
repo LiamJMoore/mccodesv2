@@ -40,7 +40,7 @@ if (!$list) {
     foreach ($list as $r) {
         $where = (int)$r['hospital'] > 0 ? 'In hospital' : ((int)$r['jail'] > 0 ? 'In jail' : ((int)$r['location'] === (int)$ir['location'] ? 'In your city' : 'Another city'));
         $can = (int)$r['target'] !== $userid && (int)$r['hospital'] === 0 && (int)$r['jail'] === 0 && (int)$r['location'] === (int)$ir['location'];
-        echo "<tr><td><a href='viewuser.php?u={$r['target']}'>" . e($r['username']) . "</a> [{$r['target']}]</td><td>{$r['level']}</td><td><b>" . money_formatter((int)$r['total'])
+        echo "<tr><td><a href='viewuser.php?u={$r['target']}'>" . perk_name((int)$r['target'], (string)$r['username']) . "</a> [{$r['target']}]</td><td>{$r['level']}</td><td><b>" . money_formatter((int)$r['total'])
             . "</b></td><td>{$r['bounties']}</td><td>{$where}</td><td>" . ($can ? "<a href='attack.php?ID={$r['target']}'>Attack</a>" : ((int)$r['target'] === $userid ? 'You' : '')) . '</td></tr>';
     }
     echo '</table>';

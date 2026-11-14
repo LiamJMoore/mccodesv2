@@ -25,6 +25,7 @@ require 'engine/mods/Bounties.php';
 require 'engine/mods/Crafting.php';
 require 'engine/mods/Season.php';
 require 'engine/mods/Store.php';
+require 'engine/mods/Perks.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -518,6 +519,35 @@ unset($GLOBALS['mcc_store_http']);
 $db->exec('DELETE FROM `v3_payments`');
 $db->exec('DELETE FROM `events`');
 $db->exec('UPDATE `users` SET `crystals` = 10, `donatordays` = 0, `new_events` = 0');
+
+// the crystal shop
+foreach (['v3_perks', 'v3_perk_uses', 'v3_missions', 'v3_progress', 'v3_achievements'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `crystals` = 100, `brave` = 0, `maxbrave` = 5 WHERE `userid` = 2');
+check(perk_refill(2, 'brave') === null && $bal(2)['crystals'] === 92 && (int)$user(2)['brave'] === 5 && str_contains((string)perk_refill(2, 'brave'), 'full') && $bal(2)['crystals'] === 92
+    && perk_refill(2, 'energy') !== null, 'a refill fills the bar for its price, and a full bar is not charged for');
+for ($i = 0; $i < 5; $i++) {
+    $db->exec('UPDATE `users` SET `brave` = 0 WHERE `userid` = 2');
+    $last = perk_refill(2, 'brave');
+}
+check(perk_used_today(2, 'refill:brave') === 3 && $bal(2)['crystals'] === 100 - 24 && str_contains((string)$last, 'tomorrow') && (int)$user(2)['brave'] === 0
+    && ($db->exec('UPDATE `users` SET `brave` = 0 WHERE `userid` = 2') || true) && perk_refill(2, 'brave', '2031-01-01') === null, 'refills stop at the daily limit, and the limit is per day');
+$db->exec('UPDATE `users` SET `crystals` = 3, `will` = 0 WHERE `userid` = 2');
+check(str_contains((string)perk_refill(2, 'will'), 'costs') && (int)$user(2)['will'] === 0 && perk_used_today(2, 'refill:will') === 0, 'a refill you cannot pay for changes nothing: not the bar, not the day\'s count');
+$db->exec('UPDATE `users` SET `crystals` = 500 WHERE `userid` = 2');
+check(perk_name(2, 'player1') === 'player1' && perk_colour(2, 'Nope') !== null && perk_colour(2, 'Gold') === null && $bal(2)['crystals'] === 440 && perk_name(2, 'player1') === "<span style='color:#FBBF24;font-weight:bold;'>player1</span>"
+    && perk_colour(2, 'Sky') === null && $bal(2)['crystals'] === 440 && str_contains(perk_name(2, 'player1'), '#38BDF8'), 'a name colour is paid for once; changing it afterwards is free');
+check(perk_badge_buy(2, 'shark') === null && $bal(2)['crystals'] === 390 && perk_badge_buy(2, 'shark') !== null && $bal(2)['crystals'] === 390 && str_contains(perk_name(2, 'player1'), "<span class='perk-badge'>Shark</span>")
+    && !perk_badge_show(2, 'kingpin') && perk_badge_show(2, '') && !str_contains(perk_name(2, 'player1'), 'perk-badge') && perk_badge_buy(2, 'nope') !== null, 'a badge is bought once, shown or hidden, and one you do not own cannot be shown');
+check(perk_name(3, '<b>x</b>') === '&lt;b&gt;x&lt;/b&gt;', 'a name is always printed safely');
+$base = count(missions_today(2, 1));
+check($base === 3 && perk_extra_mission(2, 1) === null && count(missions_today(2, 1)) === 4 && $bal(2)['crystals'] === 375 && perk_extra_mission(2, 1) !== null && $bal(2)['crystals'] === 375
+    && count(array_unique(array_column(missions_today(2, 1), 'mission'))) === 4, 'an extra mission is a fourth, different one, once a day');
+foreach (['v3_perks', 'v3_perk_uses', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `crystals` = 10, `brave` = 5, `will` = 100');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

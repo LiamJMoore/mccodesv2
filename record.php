@@ -41,7 +41,7 @@ foreach (MCC_API_TOP as $k => $label) {
 echo "</p><table width='60%' cellspacing='1' class='table'><tr><th>#</th><th>Player</th><th>" . e(MCC_API_TOP[$by]) . '</th></tr>';
 $top = api_top($by, 20);
 foreach ($top as $r) {
-    echo '<tr' . ($r['id'] === $who ? " style='font-weight:bold;'" : '') . "><td>{$r['rank']}</td><td><a href='viewuser.php?u={$r['id']}'>" . e($r['name']) . '</a></td><td>' . number_format($r['value']) . '</td></tr>';
+    echo '<tr' . ($r['id'] === $who ? " style='font-weight:bold;'" : '') . "><td>{$r['rank']}</td><td><a href='viewuser.php?u={$r['id']}'>" . perk_name($r['id'], $r['name']) . '</a></td><td>' . number_format($r['value']) . '</td></tr>';
 }
 if (!$top) {
     echo "<tr><td colspan='3'>Nobody yet. Be the first.</td></tr>";

@@ -140,6 +140,21 @@ const MCC_SCHEMA_STEPS = [
               KEY `by_intent` (`intent`),
               KEY `by_time` (`created`)
           ) ENGINE=InnoDB"],
+    // 10: what players have bought in the crystal shop, and what they have used of each day's limits
+    10 => ["CREATE TABLE IF NOT EXISTS `v3_perks` (
+              `userid` INT NOT NULL,
+              `perk` VARCHAR(40) NOT NULL,
+              `value` VARCHAR(40) NOT NULL DEFAULT '',
+              `bought` INT NOT NULL,
+              PRIMARY KEY (`userid`, `perk`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_perk_uses` (
+              `userid` INT NOT NULL,
+              `day` DATE NOT NULL,
+              `perk` VARCHAR(40) NOT NULL,
+              `uses` INT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `day`, `perk`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

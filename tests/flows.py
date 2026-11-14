@@ -1028,6 +1028,31 @@ def store(srv):
     sql("UPDATE users SET crystals = 10, donatordays = 0, new_events = 0")
 
 
+def crystalshop(srv):
+    print("Crystal shop")
+    for t in ("v3_perks", "v3_perk_uses", "v3_missions"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET crystals = 8, brave = 0, maxbrave = 5 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/crystalshop.php", {"do": "refill", "what": "brave"}, token_path="/crystalshop.php")
+    check(sum("<b>Done.</b>" in x for x in out) == 1 and balances(2)["crystals"] == 0 and one("SELECT brave FROM users WHERE userid = 2") == "5", "eight logins buying one refill at once: bought once", balances(2)["crystals"])
+    sql("UPDATE users SET crystals = 60 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/crystalshop.php", {"do": "colour", "what": "Gold"}, token_path="/crystalshop.php")
+    check(balances(2)["crystals"] == 0 and one("SELECT value FROM v3_perks WHERE userid = 2 AND perk = 'name_colour'") == "#FBBF24", "eight logins buying a name colour at once: paid for once", balances(2)["crystals"])
+    sql("UPDATE users SET crystals = 50 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/crystalshop.php", {"do": "badge", "what": "shark"}, token_path="/crystalshop.php")
+    check(balances(2)["crystals"] == 0, "eight logins buying a badge at once: paid for once", balances(2)["crystals"])
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/viewuser.php?u=2")
+    check("color:#FBBF24" in body and ">Shark</span>" in body, "the profile shows the name in its colour with the badge")
+    sql("UPDATE users SET crystals = 15 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/crystalshop.php", {"do": "mission", "what": ""}, token_path="/crystalshop.php")
+    check(balances(2)["crystals"] == 0 and one("SELECT COUNT(*) FROM v3_missions WHERE userid = 2") == "4", "eight logins adding an extra mission at once: one is added and paid for")
+    for t in ("v3_perks", "v3_perk_uses", "v3_missions"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET crystals = 10, brave = 5")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1055,6 +1080,7 @@ def main():
         equipping(srv)
         season(srv)
         store(srv)
+        crystalshop(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

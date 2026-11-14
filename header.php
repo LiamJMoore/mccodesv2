@@ -94,7 +94,7 @@ EOF;
         $bropp  = 100 - $brperc;
         $hpopp  = 100 - $hpperc;
         $d      = '';
-        $u      = $ir['username'];
+        $u      = function_exists('perk_name') ? perk_name((int)$ir['userid'], (string)$ir['username']) : $ir['username'];
         if ($ir['donatordays']) {
             $u = "<span style='color: red;'>{$ir['username']}</span>";
             $d =
