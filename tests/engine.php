@@ -27,6 +27,7 @@ require 'engine/mods/Season.php';
 require 'engine/mods/Store.php';
 require 'engine/mods/Perks.php';
 require 'engine/mods/Stocks.php';
+require 'engine/mods/Turf.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -586,6 +587,41 @@ $db->exec('DELETE FROM `v3_stock_history`');
 $db->exec('UPDATE `v3_stocks` SET `price` = `base`, `prev` = `base`');
 $db->run("UPDATE `settings` SET `conf_value` = ? WHERE `conf_name` = 'engine_stock_tick'", [(string)intdiv(time(), MCC_STOCK_TICK)]);
 $db->exec('UPDATE `users` SET `money` = 100');
+
+// gang territory
+foreach (['v3_turf', 'v3_turf_wins', 'gangs', 'gangevents', 'v3_progress', 'v3_achievements', 'v3_missions', 'v3_season'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->run("INSERT INTO `gangs` (`gangID`, `gangNAME`, `gangDESC`, `gangRESPECT`, `gangPRESIDENT`, `gangVICEPRES`, `gangCAPACITY`, `gangAMENT`) VALUES (1, 'Reds', '', 100, 2, 2, 5, ''), (2, 'Blues', '', 100, 3, 3, 5, '')");
+$db->exec('UPDATE `users` SET `gang` = 1, `location` = 1 WHERE `userid` = 2');
+$db->exec('UPDATE `users` SET `gang` = 2, `location` = 1 WHERE `userid` = 3');
+$db->exec('UPDATE `users` SET `gang` = 0, `location` = 1 WHERE `userid` = 4');
+check(turf_week(strtotime('2026-11-09 00:00:00')) === '2026-W46' && turf_week(strtotime('2026-11-15 23:59:59')) === '2026-W46' && turf_week(strtotime('2026-11-16 00:00:00')) === '2026-W47'
+    && turf_week_left(strtotime('2026-11-15 23:00:00')) === 3600 && turf_payout(10) === ['money' => 100000, 'crystals' => 10], 'a turf week runs Monday to Sunday, and a city pays more the higher its level');
+$ir = null;
+progress_add(2, 'crimes', 9);
+$st = turf_standings();
+check($st[1]['holder'] === null && $st[1]['top'][0] === ['gang' => 1, 'name' => 'Reds', 'points' => 9], 'crimes earn a gang influence where the player stands, but too little influence holds nothing');
+progress_add(2, 'fights_won', 1);
+progress_add(3, 'fights_won', 3);
+progress_add(4, 'crimes', 50);
+$st = turf_standings();
+check($st[1]['holder']['name'] === 'Blues' && array_column($st[1]['top'], 'points') === [15, 14] && $st[2]['top'] === [], 'the gang with the most influence holds the city; a player with no gang counts for nothing', $st[1]);
+turf_add(1, 1, 1);
+check(turf_standings()[1]['holder']['name'] === 'Reds', 'a tie goes to the older gang');
+// the week ends
+$db->exec("UPDATE `v3_turf` SET `week` = '2026-W01'");
+$db->exec("UPDATE `settings` SET `conf_value` = '2026-W01' WHERE `conf_name` = 'engine_turf_week'");
+$paid = turf_settle();
+$vault = $db->row('SELECT `gangMONEY`, `gangCRYSTALS` FROM `gangs` WHERE `gangID` = 1');
+$pay = turf_payout((int)$db->value('SELECT `cityminlevel` FROM `cities` WHERE `cityid` = 1'));
+check($paid === 1 && (int)$vault['gangMONEY'] === $pay['money'] && (int)$vault['gangCRYSTALS'] === 10 && turf_settle() === 0 && (int)$db->value('SELECT `gangMONEY` FROM `gangs` WHERE `gangID` = 1') === $pay['money']
+    && (int)$db->value('SELECT COUNT(*) FROM `v3_turf_wins`') === 1 && (int)$db->value("SELECT COUNT(*) FROM `gangevents` WHERE `gevGANG` = 1 AND `gevTEXT` LIKE '%held%'") === 1
+    && turf_standings()[1]['top'] === [], 'when the week ends the holder\'s vault is paid once, the gang is told, and the count starts again', [$paid, $vault]);
+foreach (['v3_turf', 'v3_turf_wins', 'gangs', 'gangevents', 'v3_progress', 'v3_achievements', 'v3_missions', 'v3_season', 'events'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `gang` = 0, `money` = 100, `crystals` = 10, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

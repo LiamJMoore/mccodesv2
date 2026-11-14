@@ -1080,6 +1080,32 @@ def stocks(srv):
     sql("UPDATE users SET money = 100, level = 1")
 
 
+def turf(srv):
+    print("Gang territory")
+    for t in ("v3_turf", "v3_turf_wins", "gangs", "gangevents"):
+        sql(f"DELETE FROM {t}")
+    sql("INSERT INTO gangs (gangID, gangNAME, gangDESC, gangRESPECT, gangPRESIDENT, gangVICEPRES, gangCAPACITY, gangAMENT) VALUES (1, 'Reds', '', 100, 2, 2, 5, '')")
+    sql("UPDATE users SET gang = 1, location = 1, brave = 50, maxbrave = 50, level = 1, exp = 0, jail = 0 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    for _ in range(12):
+        s.get("/docrime.php?c=1")
+    pts = one("SELECT COALESCE(SUM(points), 0) FROM v3_turf WHERE gang = 1 AND city = 1")
+    _, _, body = s.get("/turf.php")
+    check(pts == "12" and "<b>Your gang</b>" in body and "1. Reds: 12" in body, "twelve crimes through the real page give the gang 12 influence, and the city shows as theirs", pts)
+    # the week turns over while eight pages load at once
+    sql("UPDATE v3_turf SET week = '2026-W01'")
+    sql("UPDATE settings SET conf_value = '2026-W01' WHERE conf_name = 'engine_turf_week'")
+    many(srv, "player1", "playerpass1", 8, "/explore.php")
+    pay = 50000 + 5000 * max(1, int(one("SELECT cityminlevel FROM cities WHERE cityid = 1")))
+    check(one("SELECT gangMONEY FROM gangs WHERE gangID = 1") == str(pay) and one("SELECT COUNT(*) FROM v3_turf_wins") == "1", "eight page loads arriving as the week ends: the vault is paid once", one("SELECT gangMONEY FROM gangs WHERE gangID = 1"))
+    _, _, body = s.get("/turf.php")
+    check("Recent payouts" in body and "No influence yet" in body, "the page shows the payout, and the new week starts from nothing")
+    for t in ("v3_turf", "v3_turf_wins", "gangs", "gangevents", "v3_progress", "v3_achievements", "v3_missions", "v3_season", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET gang = 0, brave = 5, maxbrave = 5, money = 100, crystals = 10, level = 1, exp = 0, crimexp = 0, new_events = 0, energy = 12, maxenergy = 12, hp = 100, maxhp = 100")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1109,6 +1135,7 @@ def main():
         store(srv)
         crystalshop(srv)
         stocks(srv)
+        turf(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

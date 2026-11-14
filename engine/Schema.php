@@ -182,6 +182,26 @@ const MCC_SCHEMA_STEPS = [
           "INSERT IGNORE INTO `v3_stocks` (`symbol`, `name`, `price`, `prev`, `base`, `swing`) VALUES ('BRIX', 'Brixton Scrap & Salvage', 120, 120, 120, 25), ('NEON', 'Neon Row Casinos', 850, 850, 850, 45), ('DOCK', 'Eastdock Freight', 310, 310, 310, 20), ('PAWN', 'Golden Pawn Holdings', 65, 65, 65, 35), ('VLT', 'Vault Street Security', 1400, 1400, 1400, 15), ('RUSH', 'Rush Courier Co', 40, 40, 40, 60), ('IRON', 'Ironworks Gym Group', 520, 520, 520, 30), ('SMOK', 'Smokestack Brewing', 215, 215, 215, 40)",
           "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_stock_tick', '0', 'int' FROM DUAL
            WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_stock_tick')"],
+    // 12: gang territory
+    12 => ["CREATE TABLE IF NOT EXISTS `v3_turf` (
+              `city` INT NOT NULL,
+              `gang` INT NOT NULL,
+              `week` CHAR(8) NOT NULL,
+              `points` INT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`city`, `gang`, `week`),
+              KEY `standings` (`week`, `city`, `points`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_turf_wins` (
+              `week` CHAR(8) NOT NULL,
+              `city` INT NOT NULL,
+              `gang` INT NOT NULL,
+              `points` INT NOT NULL,
+              `money` BIGINT NOT NULL,
+              `crystals` INT NOT NULL,
+              PRIMARY KEY (`week`, `city`)
+          ) ENGINE=InnoDB",
+          "INSERT INTO `settings` (`conf_name`, `conf_value`, `data_type`) SELECT 'engine_turf_week', '', 'string' FROM DUAL
+           WHERE NOT EXISTS (SELECT 1 FROM `settings` WHERE `conf_name` = 'engine_turf_week')"],
 ];
 
 function schema_latest(): int
