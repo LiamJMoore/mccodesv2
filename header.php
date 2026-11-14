@@ -116,19 +116,19 @@ EOF;
 <section class="player">
   <div class="player-top">
     <span class="avatar">{$initial}</span>
-    <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level {$ir['level']}</small></div>
+    <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level <span data-live="level">{$ir['level']}</span></small></div>
     {$bell}
   </div>
   <div class="wallet">
-    <div><small>Money</small><b>{$fm}</b></div>
-    <div><small>Crystals</small><b>{$ir['crystals']}</b></div>
+    <div><small>Money</small><b data-live="money">{$fm}</b></div>
+    <div><small>Crystals</small><b data-live="crystals">{$ir['crystals']}</b></div>
   </div>
   <div class="meters">
-    <div class="meter m-energy"><span>Energy</span><em>{$enperc}%</em><i style="--v:{$enperc}%"></i></div>
-    <div class="meter m-will"><span>Will</span><em>{$wiperc}%</em><i style="--v:{$wiperc}%"></i></div>
-    <div class="meter m-brave"><span>Brave</span><em>{$ir['brave']}/{$ir['maxbrave']}</em><i style="--v:{$brperc}%"></i></div>
-    <div class="meter m-exp"><span>EXP</span><em>{$experc}%</em><i style="--v:{$experc}%"></i></div>
-    <div class="meter m-hp"><span>Health</span><em>{$hpperc}%</em><i style="--v:{$hpperc}%"></i></div>
+    <div class="meter m-energy" data-live-bar="energy"><span>Energy</span><em>{$enperc}%</em><i style="--v:{$enperc}%"></i></div>
+    <div class="meter m-will" data-live-bar="will"><span>Will</span><em>{$wiperc}%</em><i style="--v:{$wiperc}%"></i></div>
+    <div class="meter m-brave" data-live-bar="brave"><span>Brave</span><em>{$ir['brave']}/{$ir['maxbrave']}</em><i style="--v:{$brperc}%"></i></div>
+    <div class="meter m-exp" data-live-bar="exp"><span>EXP</span><em>{$experc}%</em><i style="--v:{$experc}%"></i></div>
+    <div class="meter m-hp" data-live-bar="hp"><span>Health</span><em>{$hpperc}%</em><i style="--v:{$hpperc}%"></i></div>
   </div>
   <a class="logout" href="logout.php">Emergency logout</a>
 </section>
@@ -212,6 +212,7 @@ OUT;
 </main>
 </div>
 <script src="js/notify.js" defer></script>
+<script src="js/live.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>
 </html>

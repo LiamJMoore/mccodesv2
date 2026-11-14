@@ -284,3 +284,11 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
 /* -- engine v3: crystal shop --------------------------------------------- */
 .perk-badge{display:inline-block;padding:1px 8px;border-radius:999px;font:600 11px/18px var(--body);letter-spacing:.04em;text-transform:uppercase;
   color:#0B0F1A;background:linear-gradient(90deg,#FBBF24,#FB923C);vertical-align:middle}
+
+/* -- engine v3: live sidebar --------------------------------------------- */
+.meter i{transition:--v .6s ease}
+.live-changed{animation:livechanged 1.2s ease}
+@keyframes livechanged{0%{color:#FBBF24}100%{color:inherit}}
+@media (prefers-reduced-motion:reduce){.live-changed{animation:none}}
+
+button:disabled,input[type=submit]:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}

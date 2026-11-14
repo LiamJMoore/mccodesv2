@@ -63,7 +63,7 @@ function notify_bell(int $userid, int $waiting): string
         $list = "<div class='bell-empty'>Nothing new.</div>";
     }
     $n = $sum['total'];
-    return "<details class='bell' id='mcc-bell' data-url='api.php?do=notifications'>
+    return "<details class='bell' id='mcc-bell' data-url='api.php?do=live'>
 <summary aria-label='Notifications' title='Notifications'><svg viewBox='0 0 24 24' width='18' height='18' aria-hidden='true'><path fill='currentColor' d='M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5.5-6.84V3.5a1.5 1.5 0 0 0-3 0v.66A7 7 0 0 0 5 11v5l-1.7 1.7a.75.75 0 0 0 .53 1.3h16.34a.75.75 0 0 0 .53-1.3Z'/></svg><b class='bell-n'"
         . ($n > 0 ? '' : ' hidden') . '>' . ($n > 99 ? '99+' : $n) . "</b></summary>
 <div class='bell-list'><div class='bell-items'>{$list}</div><div class='bell-foot'><a href='events.php'>All events</a><a href='mailbox.php'>Mailbox</a></div></div>

@@ -9,6 +9,7 @@ declare(strict_types=1);
  *   api.php?do=player&id=12&key=...          what a profile page shows
  *   api.php?do=me&key=...                    everything about yourself
  *   api.php?do=notifications                 your unread events and mail      (logged-in browser only)
+ *   api.php?do=live                          the sidebar's figures and the bell (logged-in browser only)
  *
  * A key comes from apikey.php. It may also be sent as the header  X-Api-Key: ...  which keeps it out of server logs.
  * Every answer is {"ok": true, "data": ...} or {"ok": false, "error": "..."}.
@@ -38,7 +39,7 @@ function api_send(int $status, array $body): never
 if ((int)($set['engine_schema'] ?? 0) < schema_latest()) {
     schema_upgrade();
 }
-$do = in_choice('do', ['game', 'top', 'hitlist', 'player', 'me', 'notifications'], '', $_GET);
+$do = in_choice('do', ['game', 'top', 'hitlist', 'player', 'me', 'notifications', 'live'], '', $_GET);
 if ($do === '') {
     api_send(400, ['ok' => false, 'error' => 'Say what you want with ?do= : game, top, hitlist, player, me or notifications.']);
 }
@@ -80,6 +81,20 @@ switch ($do) {
     case 'player':
         $p = api_player(in_int('id', 0, $_GET));
         api_send($p === null ? 404 : 200, $p === null ? ['ok' => false, 'error' => 'There is no such player.'] : ['ok' => true, 'data' => $p]);
+    case 'live':
+        // what the page's sidebar shows, for js/live.js to keep fresh; logged-in browser only
+        if ($key !== '') {
+            api_send(403, ['ok' => false, 'error' => 'This is for the logged-in game page only; use do=me.']);
+        }
+        if (!empty(get_site_settings()['use_timestamps_over_crons'])) {
+            // a player watching one page still gets their energy back: the timed updates run from here too
+            define('SILENT_CRONS', true);
+            try {
+                require_once __DIR__ . '/crons/cronless_crons.php';
+            } catch (Throwable) {
+            }
+        }
+        api_send(200, ['ok' => true, 'data' => api_live($me)]);
     case 'notifications':
         if ($key !== '') {
             api_send(403, ['ok' => false, 'error' => 'Notifications are for the logged-in game page only; use do=me for the unread counts.']);

@@ -1,4 +1,5 @@
-/* MCCodes engine v3: keeps the notifications bell fresh without reloading the page. */
+/* MCCodes engine v3: keeps the notifications bell fresh without reloading the page, and passes the same answer on
+   to js/live.js for the sidebar. One request every 20 seconds does both. */
 (function () {
     'use strict';
     var bell = document.getElementById('mcc-bell');
@@ -41,7 +42,11 @@
         if (document.hidden) { return; }
         fetch(bell.getAttribute('data-url'), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) { if (data && data.ok) { show(data.data); } })
+            .then(function (data) {
+                if (!data || !data.ok) { return; }
+                show(data.data.notifications || data.data);
+                document.dispatchEvent(new CustomEvent('mcc:live', { detail: data.data }));     // js/live.js listens for this
+            })
             .catch(function () { /* offline or logged out: try again next time */ });
     }
 
@@ -49,5 +54,5 @@
     document.addEventListener('click', function (e) { if (bell.open && !bell.contains(e.target)) { bell.open = false; } });
     document.addEventListener('visibilitychange', check);
     if (seen > 0) { document.title = '(' + (seen > 99 ? '99+' : seen) + ') ' + title; }
-    setInterval(check, 30000);
+    setInterval(check, 20000);
 })();

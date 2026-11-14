@@ -158,3 +158,24 @@ function api_rank(int $userid, string $stat): ?int
     }
     return 1 + (int)$db->value('SELECT COUNT(*) FROM `v3_progress` AS `p` INNER JOIN `users` AS `u` ON `u`.`userid` = `p`.`userid` WHERE `p`.`stat` = ? AND `p`.`amount` > ? AND `u`.`user_level` = 1', [$stat, $mine]);
 }
+
+/** What the sidebar shows, plus the bell: money, crystals, level, each bar as [now, max, percent, label]. */
+function api_live(int $userid): ?array
+{
+    global $db;
+    $u = $db->row('SELECT `money`, `crystals`, `level`, `exp`, `energy`, `maxenergy`, `will`, `maxwill`, `brave`, `maxbrave`, `hp`, `maxhp`, `hospital`, `jail` FROM `users` WHERE `userid` = ?', [$userid]);
+    if ($u === null) {
+        return null;
+    }
+    $pc = fn ($now, $max): int => (int)min(100, floor((float)$now / max(1, (float)$max) * 100));
+    $need = (int)(((int)$u['level'] + 1) ** 3 * 2.2);
+    $bars = [];
+    foreach (['energy' => 'maxenergy', 'will' => 'maxwill', 'brave' => 'maxbrave', 'hp' => 'maxhp'] as $bar => $max) {
+        $p = $pc($u[$bar], $u[$max]);
+        $bars[$bar] = ['now' => (int)$u[$bar], 'max' => (int)$u[$max], 'percent' => $p, 'label' => $bar === 'brave' ? (int)$u[$bar] . '/' . (int)$u[$max] : $p . '%'];
+    }
+    $bars['exp'] = ['now' => (float)$u['exp'], 'max' => $need, 'percent' => $pc($u['exp'], $need), 'label' => $pc($u['exp'], $need) . '%'];
+    return ['money' => (int)$u['money'], 'money_text' => html_entity_decode(money_formatter((int)$u['money']), ENT_QUOTES, 'ISO-8859-1'), 'crystals' => (int)$u['crystals'], 'level' => (int)$u['level'],
+            'bars' => $bars, 'hospital' => (int)$u['hospital'], 'jail' => (int)$u['jail'], 'notifications' => notify_summary($userid)];
+}
+
