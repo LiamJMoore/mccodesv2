@@ -44,6 +44,7 @@ function dash_snapshot(?string $today = null): bool
     }
     $set['engine_snapshot_day'] = $today;
     $t = dash_totals();
+    $db->exec('DELETE FROM `v3_ledger` WHERE `at` < ?', [time() - MCC_LEDGER_DAYS * 86400]);      // the ledger keeps its last 90 days
     $db->run('INSERT IGNORE INTO `v3_snapshots` (`day`, `players`, `active`, `signups`, `money`, `crystals`) VALUES (?, ?, ?, ?, ?, ?)',
         [$today, $t['players'], $t['active_day'], $t['new_today'], $t['all_money'], $t['crystals']]);
     return true;

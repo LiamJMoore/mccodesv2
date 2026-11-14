@@ -20,8 +20,8 @@ $jc = (int) $set['jail_count'];
 $in_hosp = $ir['hospital'] > 0;
 $in_jail = $ir['jail'] > 0;
 $free = !$in_hosp && !$in_jail;
-$mcc_daily = daily_status((int) $ir['userid'], (int) $ir['level']);
-$mcc_season = season_waiting((int) $ir['userid']);
+$mcc_daily = once('daily', fn () => daily_status((int) $ir['userid'], (int) $ir['level']));
+$mcc_season = season_waiting((int) $ir['userid'], once('season', fn () => season_status((int) $ir['userid'])));
 
 echo ui_group('You', [
     $free ? ui_link('index.php', 'home', 'Home') : '',
@@ -86,6 +86,7 @@ if ($ir['donatordays']) {
 }
 echo ui_group('Account', [
     ui_link("viewuser.php?u={$ir['userid']}", 'user', 'My Profile'),
+    ui_link('ledger.php', 'list', 'Statement'),
     ui_link('preferences.php', 'gear', 'Preferences'),
     ui_link('apikey.php', 'key', 'API Key'),
     ui_link('preport.php', 'alert', 'Player Report'),

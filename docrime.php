@@ -62,6 +62,8 @@ if (rand(1, 100) <= $sucrate)
     print str_replace('{money}', (string) $r['crimeSUCCESSMUNY'], $r['crimeSTEXT']);
     $db->exec('UPDATE `users` SET `money` = `money` + ?, `crystals` = `crystals` + ?, `exp` = `exp` + ?, `crimexp` = `crimexp` + ? WHERE `userid` = ?',
             [(int) $r['crimeSUCCESSMUNY'], (int) $r['crimeSUCCESSCRYS'], (int) ($r['crimeSUCCESSMUNY'] / 8), (int) $r['crimeXP'], $userid]);
+    ledger_add($userid, 'money', (int) $r['crimeSUCCESSMUNY'], (string) $r['crimeNAME']);
+    ledger_add($userid, 'crystals', (int) $r['crimeSUCCESSCRYS'], (string) $r['crimeNAME']);
     progress_add($userid, 'crimes');
     progress_add($userid, 'crime_money', (int) $r['crimeSUCCESSMUNY']);
     if ($r['crimeSUCCESSITEM'])

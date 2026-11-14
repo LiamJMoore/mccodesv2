@@ -64,6 +64,8 @@ function fight_win(array $me, int $loser_id, string $how, string $log = ''): ?ar
         }
         $db->exec('UPDATE `users` SET `hp` = 1, `money` = `money` - ?, `hospital` = ?, `hospreason` = ? WHERE `userid` = ?', [$stole, $hospital, $reason, $loser_id]);
         $db->exec('UPDATE `users` SET `exp` = `exp` + ?, `money` = `money` + ?, `attacking` = 0 WHERE `userid` = ?', [$exp, $stole, $userid]);
+        ledger_add($loser_id, 'money', -$stole, 'mugged');
+        ledger_add($userid, 'money', $stole, 'mugging');
         event_add($loser_id, $event);
         $db->insert('attacklogs', ['attacker' => $userid, 'attacked' => $loser_id, 'result' => 'won', 'time' => time(), 'stole' => $logged, 'attacklog' => $log]);
 
@@ -98,6 +100,7 @@ function fight_win(array $me, int $loser_id, string $how, string $log = ''): ?ar
                 $bot_money = (int)$prize;
                 $db->exec('UPDATE `users` SET `money` = `money` + ? WHERE `userid` = ?', [$bot_money, $userid]);
                 $db->insert('challengesbeaten', ['userid' => $userid, 'npcid' => $loser_id]);
+                ledger_add($userid, 'money', $bot_money, 'challenge bot prize');
             }
         }
         $result = ['loser' => $r, 'stole' => $stole, 'exp' => $exp, 'hospital' => $hospital, 'respect' => $respect, 'bot_money' => $bot_money, 'notes' => []];

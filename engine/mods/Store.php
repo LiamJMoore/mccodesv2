@@ -148,6 +148,7 @@ function store_handle_event(array $event): string
                 return false;
             }
             $db->exec('UPDATE `users` SET `crystals` = `crystals` + ?, `donatordays` = `donatordays` + ? WHERE `userid` = ?', [$pack['crystals'], $pack['donator_days'], $userid]);
+            ledger_add($userid, 'crystals', $pack['crystals'], $pack['name']);
             event_add($userid, 'Thank you! Your ' . e($pack['name']) . " has arrived: {$pack['crystals']} crystals and {$pack['donator_days']} days of donator status.");
             $result = 'credited';
             return true;

@@ -47,6 +47,7 @@ if (isset($_GET['property']) && is_numeric($_GET['property']))
     }
     else
     {
+        ledger_add($userid, 'money', -(int) $np['hPRICE'], 'bought ' . $np['hNAME']);
         echo "Congrats, you bought the {$np['hNAME']} for "
                 . money_formatter($np['hPRICE']) . '!';
     }
@@ -66,6 +67,7 @@ elseif (isset($_GET['sellhouse']))
     }
     else
     {
+        ledger_add($userid, 'money', (int) $mp['hPRICE'], 'sold ' . $mp['hNAME']);
         echo "You sold your {$mp['hNAME']} and went back to your shed.";
     }
 }

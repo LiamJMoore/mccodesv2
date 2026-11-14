@@ -22,6 +22,7 @@ if (isset($_GET['open']) && $_GET['open'])
                 ? 'Sorry, you have already opened 5 boxes today. Come back tomorrow.'
                 : "Sorry, it costs {$bc_format} to open a box. Come back when you have enough.");
     }
+    ledger_add($userid, 'money', -$box_cost, 'a box');
     $num = rand(1, 5);
     $ir['money'] -= $box_cost;
     switch ($num)

@@ -33,6 +33,7 @@ require 'engine/mods/Pets.php';
 require 'engine/mods/Trade.php';
 require 'engine/mods/Invest.php';
 require 'engine/mods/Profile.php';
+require 'engine/mods/Home.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -772,6 +773,36 @@ foreach (['v3_trade_stock', 'v3_trade_cargo', 'v3_perk_uses', 'v3_progress', 'v3
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `location` = 1, `level` = 1, `new_events` = 0');
+
+// the ledger
+$db->exec('DELETE FROM `v3_ledger`');
+$db->exec('UPDATE `users` SET `money` = 1000, `crystals` = 10, `bankmoney` = 0, `cybermoney` = -1 WHERE `userid` IN (2, 3)');
+$lines = fn (int $u = 0): array => array_map(fn ($l) => [(int)$l['userid'], $l['wallet'], (int)$l['delta']], array_reverse(ledger_lines($u ? ['userid' => $u] : [])));
+wallet_take(2, 'money', 300);
+wallet_give(2, 'crystals', 5);
+wallet_move(2, 'money', 'bankmoney', 200, 170);
+check($lines() === [[2, 'money', -300], [2, 'crystals', 5], [2, 'money', -200], [2, 'bankmoney', 170]], 'every change the wallet functions make is written to the ledger', $lines());
+wallet_take(2, 'money', 999999);
+wallet_give(2, 'cybermoney', 5);
+wallet_take(2, 'money', 0);
+check(count($lines()) === 4, 'a change that did not happen leaves no line');
+wallet_send(2, 3, 'money', 100);
+wallet_send(2, 3, 'money', 100, 'cybermoney');
+check(array_slice($lines(), 4) === [[2, 'money', -100], [3, 'money', 100]] && $bal(2)['money'] === 400, 'a send writes a line for each side, and a send that is undone writes none', array_slice($lines(), 4));
+$sum = (int)$db->value("SELECT SUM(`delta`) FROM `v3_ledger` WHERE `userid` = 2 AND `wallet` = 'money'");
+check(1000 + $sum === $bal(2)['money'], 'the ledger adds up to the balance');
+check(count(ledger_lines(['userid' => 3])) === 1 && count(ledger_lines(['wallet' => 'crystals'])) === 1 && count(ledger_lines(['min' => 250])) === 1 && count(ledger_lines([], 2)) === 2 && count(ledger_lines([], 50, 5)) === 1
+    && ledger_label('bank.php') === 'Bank' && ledger_label('docrime.php', 'Pick a pocket') === 'Crime: Pick a pocket' && ledger_label('some_new_page.php') === 'Some new page',
+    'the ledger can be filtered by player, account and size, read a page at a time, and names where each line came from');
+$db->exec('DELETE FROM `v3_ledger`');
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `bankmoney` = -1, `cybermoney` = -1');
+$r = home_ranks(['userid' => 2, 'strength' => 10, 'agility' => 10, 'guard' => 10, 'labour' => 10, 'IQ' => 10]);
+$db->exec('UPDATE `userstats` SET `strength` = 50 WHERE `userid` = 3');
+$r2 = home_ranks(['userid' => 2, 'strength' => 10, 'agility' => 10, 'guard' => 10, 'labour' => 10, 'IQ' => 10]);
+$db->exec('UPDATE `userstats` SET `strength` = 10 WHERE `userid` = 3');
+$n = 0;
+check($r['strength'] === 1 && $r['total'] === 1 && $r2['strength'] === 2 && $r2['total'] === 2 && $r2['agility'] === 1 && once('t', function () use (&$n) { return ++$n; }) === 1 && once('t', function () use (&$n) { return ++$n; }) === 1 && $n === 1,
+    'ranks for all the battle stats come from one query, and once() works a thing out one time only', [$r, $r2]);
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

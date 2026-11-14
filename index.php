@@ -39,17 +39,19 @@ $pc = fn ($now, $max): int => (int) max(0, min(100, $max > 0 ? floor($now / $max
 $exp = $pc($ir['exp'], $ir['exp_needed']);
 $name = perk_name((int) $ir['userid'], (string) $ir['username']);
 $house = htmlspecialchars((string) ($ir['hNAME'] ?? 'No fixed address'), ENT_QUOTES, 'ISO-8859-1');
-$gang = (int) $ir['gang'] > 0 ? (string) $db->value('SELECT `gangNAME` FROM `gangs` WHERE `gangID` = ?', [(int) $ir['gang']], '') : '';
-$city = (string) $db->value('SELECT `cityname` FROM `cities` WHERE `cityid` = ?', [(int) $ir['location']], '');
-$daily = daily_status($userid, (int) $ir['level']);
-$season = season_status($userid);
-$missions = missions_today($userid, (int) $ir['level']);
+$where = $db->row('SELECT (SELECT `cityname` FROM `cities` WHERE `cityid` = ?) AS `city`, (SELECT `gangNAME` FROM `gangs` WHERE `gangID` = ?) AS `gang`', [(int) $ir['location'], (int) $ir['gang']]);
+$gang = (string) ($where['gang'] ?? '');
+$city = (string) ($where['city'] ?? '');
+$daily = once('daily', fn () => daily_status($userid, (int) $ir['level']));
+$season = once('season', fn () => season_status($userid));
+$missions = once('missions', fn () => missions_today($userid, (int) $ir['level']));
 $done = count(array_filter($missions, fn ($m) => (int) $m['progress'] >= (int) $m['target']));
 $worth = home_net_worth($ir);
 $stats = ['Strength' => ['strength', (float) $ir['strength']], 'Agility' => ['agility', (float) $ir['agility']], 'Guard' => ['guard', (float) $ir['guard']],
           'Labour' => ['labour', (float) $ir['labour']], 'IQ' => ['IQ', (float) $ir['IQ']]];
 $ts = array_sum(array_column($stats, 1));
-$tsrank = get_rank($ts, 'strength+agility+guard+labour+IQ');
+$ranks = home_ranks($ir);
+$tsrank = $ranks['total'];
 
 echo "<div class='dash'>
 <section class='dash-hero'>
@@ -115,7 +117,7 @@ echo "</div>
   <div class='dash-stats'>";
 foreach ($stats as $label => $s)
 {
-    $rank = get_rank($s[1], $s[0]);
+    $rank = $ranks[$s[0]];
     $share = $ts > 0 ? (int) round($s[1] / $ts * 100) : 0;
     echo "<div class='stat'><div class='stat-top'><span>{$label}</span><b>"
             . number_format($s[1])

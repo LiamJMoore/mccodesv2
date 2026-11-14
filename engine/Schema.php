@@ -264,6 +264,18 @@ const MCC_SCHEMA_STEPS = [
               KEY `on_profile` (`profile`, `id`),
               KEY `by_author` (`author`, `at`)
           ) ENGINE=InnoDB"],
+    // 16: the ledger of every change to money and crystals
+    16 => ["CREATE TABLE IF NOT EXISTS `v3_ledger` (
+              `id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `userid` INT NOT NULL,
+              `wallet` VARCHAR(12) NOT NULL,
+              `delta` BIGINT NOT NULL,
+              `at` INT NOT NULL,
+              `page` VARCHAR(40) NOT NULL DEFAULT '',
+              `note` VARCHAR(80) NOT NULL DEFAULT '',
+              KEY `by_player` (`userid`, `id`),
+              KEY `by_time` (`at`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

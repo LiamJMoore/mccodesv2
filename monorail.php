@@ -83,6 +83,7 @@ else
             if ($db->exec('UPDATE `users` SET `money` = `money` - ?, `location` = ? WHERE `userid` = ? AND `money` >= ? AND `location` <> ?',
                     [$cost_of_travel, $_GET['to'], $userid, $cost_of_travel, $_GET['to']]) === 1)
             {
+                ledger_add($userid, 'money', -$cost_of_travel, 'ticket');
                 echo 'Congratulations, you paid '
                         . money_formatter($cost_of_travel) . ' and travelled to '
                         . $cityName . ' on the monorail!';

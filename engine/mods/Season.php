@@ -142,9 +142,9 @@ function season_claim_all(int $userid, ?string $season = null): array
 }
 
 /** How many rewards are waiting to be collected (for the menu). */
-function season_waiting(int $userid): int
+function season_waiting(int $userid, ?array $st = null): int
 {
-    $st = season_status($userid);
+    $st ??= season_status($userid);
     return max(0, $st['tier'] - count($st['claimed']['free'])) + ($st['premium'] ? max(0, $st['tier'] - count($st['claimed']['premium'])) : 0);
 }
 

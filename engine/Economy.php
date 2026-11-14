@@ -34,7 +34,14 @@ function wallet_take(int $userid, string $wallet, int $amount): bool
 {
     global $db;
     wallet_check($wallet, $amount);
-    return $db->exec("UPDATE `users` SET `{$wallet}` = `{$wallet}` - ? WHERE `userid` = ? AND `{$wallet}` >= ?", [$amount, $userid, $amount]) === 1 || $amount === 0;
+    if ($amount === 0) {
+        return true;
+    }
+    if ($db->exec("UPDATE `users` SET `{$wallet}` = `{$wallet}` - ? WHERE `userid` = ? AND `{$wallet}` >= ?", [$amount, $userid, $amount]) !== 1) {
+        return false;
+    }
+    ledger_add($userid, $wallet, -$amount);
+    return true;
 }
 
 /** Add $amount to one balance. False if the player does not exist, or has not opened that account. */
@@ -42,7 +49,14 @@ function wallet_give(int $userid, string $wallet, int $amount): bool
 {
     global $db;
     wallet_check($wallet, $amount);
-    return $db->exec("UPDATE `users` SET `{$wallet}` = `{$wallet}` + ? WHERE `userid` = ? AND `{$wallet}` >= 0", [$amount, $userid]) === 1 || $amount === 0;
+    if ($amount === 0) {
+        return true;
+    }
+    if ($db->exec("UPDATE `users` SET `{$wallet}` = `{$wallet}` + ? WHERE `userid` = ? AND `{$wallet}` >= 0", [$amount, $userid]) !== 1) {
+        return false;
+    }
+    ledger_add($userid, $wallet, $amount);
+    return true;
 }
 
 /**
@@ -58,9 +72,14 @@ function wallet_move(int $userid, string $from, string $to, int $take, ?int $giv
     if ($from === $to) {
         throw new InvalidArgumentException('The two balances must differ.');
     }
-    return $db->exec(
+    if ($db->exec(
         "UPDATE `users` SET `{$from}` = `{$from}` - ?, `{$to}` = `{$to}` + ? WHERE `userid` = ? AND `{$from}` >= ? AND `{$to}` >= 0",
-        [$take, $give, $userid, $take]) === 1;
+        [$take, $give, $userid, $take]) !== 1) {
+        return false;
+    }
+    ledger_add($userid, $from, -$take);
+    ledger_add($userid, $to, $give);
+    return true;
 }
 
 /**
@@ -94,9 +113,13 @@ function wallet_open(int $userid, string $account, int $fee, string $pay_from = 
     global $db;
     wallet_check($account, 0);
     wallet_check($pay_from, $fee);
-    return $db->exec(
+    if ($db->exec(
         "UPDATE `users` SET `{$pay_from}` = `{$pay_from}` - ?, `{$account}` = 0 WHERE `userid` = ? AND `{$pay_from}` >= ? AND `{$account}` = -1",
-        [$fee, $userid, $fee]) === 1;
+        [$fee, $userid, $fee]) !== 1) {
+        return false;
+    }
+    ledger_add($userid, $pay_from, -$fee, 'opened an account');
+    return true;
 }
 
 /**
@@ -146,5 +169,64 @@ function vault_give(int $gang, int $money, int $crystals = 0): bool
     }
     return $db->exec('UPDATE `gangs` SET `gangMONEY` = `gangMONEY` + ?, `gangCRYSTALS` = `gangCRYSTALS` + ? WHERE `gangID` = ?', [$money, $crystals, $gang]) === 1
         || (int)$db->value('SELECT COUNT(*) FROM `gangs` WHERE `gangID` = ?', [$gang]) === 1;
+}
+
+/**
+ * The ledger: one line for every change to a player's money or crystals, with the page it happened on. It is
+ * written inside the same transaction as the change, so a change that is undone leaves no line.
+ *
+ * The wallet functions above write to it themselves. A page that changes a balance with its own SQL calls
+ * ledger_add() beside that statement. Lines are kept for MCC_LEDGER_DAYS and then cleared out.
+ */
+const MCC_LEDGER_DAYS = 90;
+
+function ledger_add(int $userid, string $wallet, int $delta, string $note = ''): void
+{
+    global $db;
+    if ($delta === 0) {
+        return;
+    }
+    static $page = null;
+    $page ??= substr(basename((string)($_SERVER['SCRIPT_NAME'] ?? 'cli')), 0, 40);
+    $db->run('INSERT INTO `v3_ledger` (`userid`, `wallet`, `delta`, `at`, `page`, `note`) VALUES (?, ?, ?, ?, ?, ?)', [$userid, $wallet, $delta, time(), $page, substr($note, 0, 80)]);
+}
+
+/** Lines from the ledger, newest first. $filter may hold 'userid', 'wallet', 'min' (smallest size of change), 'page'. */
+function ledger_lines(array $filter = [], int $limit = 50, int $offset = 0): array
+{
+    global $db;
+    $where = ['1 = 1'];
+    $params = [];
+    if (!empty($filter['userid'])) {
+        $where[] = '`l`.`userid` = ?';
+        $params[] = (int)$filter['userid'];
+    }
+    if (!empty($filter['wallet']) && in_array($filter['wallet'], MCC_WALLETS, true)) {
+        $where[] = '`l`.`wallet` = ?';
+        $params[] = $filter['wallet'];
+    }
+    if (!empty($filter['min'])) {
+        $where[] = 'ABS(`l`.`delta`) >= ?';
+        $params[] = (int)$filter['min'];
+    }
+    if (!empty($filter['page'])) {
+        $where[] = '`l`.`page` = ?';
+        $params[] = (string)$filter['page'];
+    }
+    return $db->all('SELECT `l`.`id`, `l`.`userid`, `l`.`wallet`, `l`.`delta`, `l`.`at`, `l`.`page`, `l`.`note`, `u`.`username` FROM `v3_ledger` AS `l` LEFT JOIN `users` AS `u` ON `u`.`userid` = `l`.`userid`
+                     WHERE ' . implode(' AND ', $where) . ' ORDER BY `l`.`id` DESC LIMIT ' . max(1, min($limit, 200)) . ' OFFSET ' . max(0, $offset), $params);
+}
+
+/** What a ledger line is, in words, from the page it happened on. */
+function ledger_label(string $page, string $note = ''): string
+{
+    static $names = ['bank.php' => 'Bank', 'cyberbank.php' => 'Cyber Bank', 'sendcash.php' => 'Sent or received cash', 'sendcrys.php' => 'Sent or received crystals', 'sendbank.php' => 'Bank transfer',
+        'sendcyber.php' => 'Cyber Bank transfer', 'itembuy.php' => 'Shop', 'itemsell.php' => 'Sold an item', 'itemmarket.php' => 'Item market', 'cmarket.php' => 'Crystal market', 'docrime.php' => 'Crime',
+        'daily.php' => 'Daily reward', 'missions.php' => 'Mission', 'season.php' => 'Season pass', 'bounties.php' => 'Bounty', 'attackwon.php' => 'Fight', 'attackbeat.php' => 'Fight', 'attacktake.php' => 'Fight',
+        'stocks.php' => 'Stock market', 'trade.php' => 'Trading post', 'invest.php' => 'Investment bank', 'lottery.php' => 'Lottery', 'pet.php' => 'Pet', 'craft.php' => 'Workshop', 'crystalshop.php' => 'Crystal shop',
+        'crystaltemple.php' => 'Crystal temple', 'slotsmachine.php' => 'Slots', 'roulette.php' => 'Roulette', 'lucky.php' => 'Lucky boxes', 'estate.php' => 'Estate agent', 'monorail.php' => 'Travel',
+        'jailbail.php' => 'Bail', 'yourgang.php' => 'Gang', 'creategang.php' => 'Founded a gang', 'stripe_webhook.php' => 'Store purchase', 'marriage.php' => 'Marriage', 'auction.php' => 'Auction house'];
+    $name = $names[$page] ?? ucfirst(str_replace(['.php', '_'], ['', ' '], $page));
+    return $note !== '' ? "{$name}: {$note}" : $name;
 }
 

@@ -581,3 +581,6 @@ a.tile{color:var(--ink)!important}
 .dash-card header h3::after{display:none}
 @media (max-width:900px){.dash-bars{grid-template-columns:1fr 1fr;gap:10px}.dash-cols{grid-template-columns:1fr}.dash-today{grid-template-columns:1fr 1fr}}
 @media (max-width:900px){.dash .dash-tiles{grid-template-columns:1fr 1fr;gap:10px}.dash .tile{padding:12px 14px}.dash .tile b{font-size:17px}}
+
+.amt-in{color:var(--good);font-variant-numeric:tabular-nums;font-weight:600}
+.amt-out{color:var(--bad);font-variant-numeric:tabular-nums;font-weight:600}

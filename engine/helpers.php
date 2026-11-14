@@ -84,3 +84,17 @@ function safe_url(string $url): string
     return htmlspecialchars($plain, ENT_QUOTES, 'ISO-8859-1');
 }
 
+/**
+ * Work something out once per page load. The menu, the dashboard and its suggestions all want the same facts about
+ * the player (today's reward, the season, the missions); this lets the first to ask fetch them and the rest reuse
+ * the answer. Only for things read while a page is being drawn: never around something a page then changes.
+ */
+function once(string $key, callable $make): mixed
+{
+    static $kept = [];
+    if (!array_key_exists($key, $kept)) {
+        $kept[$key] = $make();
+    }
+    return $kept[$key];
+}
+

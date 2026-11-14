@@ -22,15 +22,15 @@ function home_suggestions(array $ir): array
     if ($bounty > 0) {
         $add(95, 'bounties.php', 'crosshair', 'There is a price on your head', money_formatter($bounty) . ' to whoever puts you in hospital.', true);
     }
-    $daily = daily_status($id, $level);
+    $daily = once('daily', fn () => daily_status($id, $level));
     if (!$daily['claimed']) {
         $add(90, 'daily.php', 'gift', 'Claim your daily reward', 'Day ' . $daily['next'] . ' pays ' . money_formatter($daily['reward']['money']) . ($daily['reward']['crystals'] ? " and {$daily['reward']['crystals']} crystals" : '') . '.', true);
     }
-    $season = season_waiting($id);
+    $season = season_waiting($id, once('season', fn () => season_status($id)));
     if ($season > 0) {
         $add(85, 'season.php', 'star', 'Season rewards are waiting', $season . ' to collect.', true);
     }
-    $missions = missions_today($id, $level);
+    $missions = once('missions', fn () => missions_today($id, $level));
     $ready = count(array_filter($missions, fn ($m) => (int)$m['claimed'] === 0 && (int)$m['progress'] >= (int)$m['target']));
     $open = count(array_filter($missions, fn ($m) => (int)$m['progress'] < (int)$m['target']));
     if ($ready > 0) {
@@ -77,13 +77,36 @@ function home_events(int $userid, int $limit = 6): array
     return $db->all('SELECT `evTIME` AS `time`, `evTEXT` AS `text`, (`evREAD` = 0) AS `unread` FROM `events` WHERE `evUSER` = ? ORDER BY `evTIME` DESC, `evID` DESC LIMIT ' . max(1, min($limit, 20)), [$userid]);
 }
 
-/** Everything the player owns that has a cash value the game knows: pocket, banks, shares at today's price, cargo at cost, a running investment. */
+/** Everything the player owns that has a cash value the game knows: pocket, banks, shares at today's price, cargo at cost, a running investment. One query. */
 function home_net_worth(array $ir): int
 {
     global $db;
     $id = (int)$ir['userid'];
-    return (int)$ir['money'] + max(0, (int)$ir['bankmoney']) + max(0, (int)$ir['cybermoney'])
-        + (int)$db->value('SELECT COALESCE(SUM(`h`.`shares` * `s`.`price`), 0) FROM `v3_stock_holdings` AS `h` INNER JOIN `v3_stocks` AS `s` ON `s`.`id` = `h`.`stock` WHERE `h`.`userid` = ?', [$id])
-        + (int)$db->value('SELECT COALESCE(SUM(`paid`), 0) FROM `v3_trade_cargo` WHERE `userid` = ?', [$id])
-        + (int)$db->value('SELECT COALESCE(SUM(`amount`), 0) FROM `v3_investments` WHERE `userid` = ?', [$id]);
+    return (int)$ir['money'] + max(0, (int)$ir['bankmoney']) + max(0, (int)$ir['cybermoney']) + (int)$db->value(
+        'SELECT (SELECT COALESCE(SUM(`h`.`shares` * `s`.`price`), 0) FROM `v3_stock_holdings` AS `h` INNER JOIN `v3_stocks` AS `s` ON `s`.`id` = `h`.`stock` WHERE `h`.`userid` = ?)
+              + (SELECT COALESCE(SUM(`paid`), 0) FROM `v3_trade_cargo` WHERE `userid` = ?)
+              + (SELECT COALESCE(SUM(`amount`), 0) FROM `v3_investments` WHERE `userid` = ?)', [$id, $id, $id]);
+}
+
+/**
+ * Where the player ranks for each battle stat and for all five together, in one query (the dashboard used to ask
+ * six separate questions). Returns ['strength' => rank, ..., 'total' => rank]; 1 is top. NPCs are left out.
+ */
+function home_ranks(array $ir): array
+{
+    global $db;
+    $cols = ['strength', 'agility', 'guard', 'labour', 'IQ'];
+    $select = [];
+    $params = [];
+    $total = 0.0;
+    foreach ($cols as $c) {
+        $select[] = "COALESCE(SUM(`us`.`{$c}` > ?), 0) AS `{$c}`";
+        $params[] = (float)$ir[$c];
+        $total += (float)$ir[$c];
+    }
+    $select[] = 'COALESCE(SUM(`us`.`strength` + `us`.`agility` + `us`.`guard` + `us`.`labour` + `us`.`IQ` > ?), 0) AS `total`';
+    $params[] = $total;
+    $params[] = (int)$ir['userid'];
+    $r = $db->row('SELECT ' . implode(', ', $select) . ' FROM `userstats` AS `us` INNER JOIN `users` AS `u` ON `u`.`userid` = `us`.`userid` WHERE `us`.`userid` <> ? AND `u`.`user_level` <> 0', $params);
+    return array_map(fn ($n) => (int)$n + 1, $r);
 }

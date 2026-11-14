@@ -1244,6 +1244,36 @@ def home(srv):
     sql("UPDATE users SET money = 100, crystals = 10, bankmoney = -1, energy = 12, brave = 5, hp = 100, level = 1, new_events = 0")
 
 
+def ledger(srv):
+    print("Ledger")
+    sql("DELETE FROM v3_ledger")
+    sql("UPDATE users SET money = 5000, bankmoney = 0, brave = 5 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    s.form("/bank.php?action=deposit", {"deposit": "2000"}, token_from="/bank.php")
+    s.get("/docrime.php?c=1")
+    _, _, body = s.get("/ledger.php")
+    check("Your Statement" in body and "Bank</td>" in body and "&minus; $2,000" in body and "Crime: Search the sofa" in body and "+ $80" in body, "a player's statement lists a deposit and a crime's takings")
+    total = int(one("SELECT COALESCE(SUM(delta), 0) FROM v3_ledger WHERE userid = 2 AND wallet = 'money'"))
+    check(5000 + total == balances(2)["money"], "the statement adds up to the pocket", (total, balances(2)["money"]))
+    _, _, body = s.get("/ledger.php?w=crystals")
+    check("$2,000" not in body, "the statement can be narrowed to one account")
+    _, _, body = s.get("/staff_ledger.php?u=2")
+    check("docrime.php" not in body, "a player cannot open the staff ledger")
+    staff = Session(srv.base)
+    staff.login("admin", "adminpass1")
+    _, _, body = staff.get("/staff_ledger.php?u=2")
+    check("docrime.php" in body and "bank.php" in body and "This player, last 90 days" in body, "staff can read a player's lines and totals")
+    _, _, body = staff.get("/staff_ledger.php?min=1000")
+    check("bank.php" in body and "docrime.php" not in body, "staff can filter by size")
+    _, _, body = s.get("/index.php")
+    q = int(re.search(r'class="foot">(\d+) queries', body).group(1))
+    check(q <= 24, "the dashboard is drawn in two dozen database queries or fewer (it was 37)", q)
+    for t in ("v3_ledger", "v3_progress", "v3_achievements", "v3_missions", "v3_season", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, bankmoney = -1, brave = 5, exp = 0, level = 1, crimexp = 0, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1278,6 +1308,7 @@ def main():
         pets(srv)
         trading(srv)
         home(srv)
+        ledger(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
