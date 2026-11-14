@@ -353,6 +353,18 @@ const MCC_SCHEMA_STEPS = [
               `level` TINYINT NOT NULL DEFAULT 0,
               PRIMARY KEY (`userid`, `perk`)
           ) ENGINE=InnoDB'],
+    // 21: journeys and vehicles
+    21 => ['CREATE TABLE IF NOT EXISTS `v3_travel` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `dest` INT NOT NULL,
+              `left_at` INT NOT NULL,
+              `arrives` INT NOT NULL
+          ) ENGINE=InnoDB',
+          'CREATE TABLE IF NOT EXISTS `v3_vehicles` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `vehicle` VARCHAR(20) NOT NULL,
+              `bought` INT NOT NULL
+          ) ENGINE=InnoDB'],
 ];
 
 function schema_latest(): int

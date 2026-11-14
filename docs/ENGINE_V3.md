@@ -119,6 +119,7 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Support tickets | `tickets.php`, `staff_tickets.php` | `Tickets.php` | Plain-text conversations between a player and staff; replies are in the staff log |
 | Friends, black list, contacts | `friendslist.php`, `blacklist.php`, `contactlist.php` | `Contacts.php` | The v2 lists on one safe piece of code; also the mugger of the hour |
 | Merits | `merits.php` | `Merits.php` | One merit per achievement, spent on four small permanent upgrades (daily reward, mission pay, auction cut, loan interest) |
+| Travel time and vehicles | `monorail.php`, `vehicles.php` | `Travel.php` | A journey takes 5 minutes by monorail ($1,000) or 4 to 1 minutes in your own vehicle (no fare). While travelling only mail, events, forums and account pages work, and you cannot be attacked |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:

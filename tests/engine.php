@@ -40,6 +40,7 @@ require 'engine/mods/Loan.php';
 require 'engine/mods/Tickets.php';
 require 'engine/mods/Contacts.php';
 require 'engine/mods/Merits.php';
+require 'engine/mods/Travel.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -982,6 +983,31 @@ foreach (['v3_merits', 'v3_achievements', 'v3_loans', 'v3_auctions', 'inventory'
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `bankmoney` = 0, `crystals` = 10, `new_events` = 0');
+
+// travel and vehicles
+foreach (['v3_travel', 'v3_vehicles', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 5000, `location` = 1, `level` = 1, `jail` = 0, `hospital` = 0');
+$tt = 1900000000;
+check(travel_start(2, 1, $tt) !== null && travel_start(2, 99999, $tt) !== null && travel_start(2, 3, $tt) !== null && $bal(2)['money'] === 5000 && travel_of(2, $tt) === null, 'you cannot travel to where you are, to nowhere, or to a city above your level; a refusal costs nothing');
+check(travel_start(2, 2, $tt) === null && $bal(2)['money'] === 4000 && (int)$user(2)['location'] === 1 && travel_of(2, $tt + 10)['left'] === MCC_TRAVEL_SECONDS - 10 && travel_start(2, 2, $tt + 5) !== null && $bal(2)['money'] === 4000,
+    'the monorail costs the fare, takes five minutes, and you can only be on one journey');
+check(travel_arrive(2, $tt + 299) === null && (int)$user(2)['location'] === 1 && travel_arrive(2, $tt + 300) === 2 && (int)$user(2)['location'] === 2 && travel_arrive(2, $tt + 300) === null && travel_of(2, $tt + 300) === null,
+    'you arrive when the time is up, once');
+$db->exec('UPDATE `users` SET `hospital` = 5 WHERE `userid` = 2');
+check(travel_start(2, 1, $tt + 400) !== null, 'nobody travels from hospital');
+$db->exec('UPDATE `users` SET `hospital` = 0, `money` = 60000 WHERE `userid` = 2');
+check(vehicle_buy(2, 'tank') !== null && vehicle_buy(2, 'car') !== null && vehicle_buy(2, 'bike') === null && $bal(2)['money'] === 10000 && vehicle_buy(2, 'bike') !== null && $bal(2)['money'] === 10000 && vehicle_of(2) === 'bike',
+    'a vehicle is bought once, if you can afford it');
+check(travel_start(2, 1, $tt + 500) === null && $bal(2)['money'] === 10000 && travel_of(2, $tt + 500)['left'] === 240 && travel_arrive(2, $tt + 740) === 1, 'with a vehicle there is no fare and the journey is shorter');
+$db->exec('UPDATE `users` SET `money` = 225000 WHERE `userid` = 2');
+check(vehicle_buy(2, 'car') === null && $bal(2)['money'] === 0 && vehicle_of(2) === 'car' && vehicle_buy(2, 'bike') === null && $bal(2)['money'] === 75000, 'buying another trades the old one in at half price, up or down');
+check(vehicle_sell(2) === 25000 && vehicle_sell(2) === 0 && $bal(2)['money'] === 100000 && vehicle_of(2) === null && vehicle_sell(3) === 0, 'a vehicle sells for half, once');
+foreach (['v3_travel', 'v3_vehicles', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `location` = 1');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

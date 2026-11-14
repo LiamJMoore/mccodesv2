@@ -177,6 +177,9 @@ OUT;
         print '</nav></aside><nav class="tabbar" aria-label="Quick links">' . $tab('index.php', 'home', 'Home') . $tab('explore.php', 'compass', 'Explore')
             . $tab('criminal.php', 'mask', 'Crimes') . $tab('gym.php', 'dumbbell', 'Gym') . '<label for="navt">' . ui_icon('menu', 22) . '<span>Menu</span></label></nav>';
         print '<main class="main"><div class="notices">';
+        if (!empty($GLOBALS['MCC_TRIP'])) {
+            echo "<div class='notice'><b>Travelling</b> to " . e($GLOBALS['MCC_TRIP']['cityname']) . ', arriving in ' . travel_clock($GLOBALS['MCC_TRIP']['left']) . ". <a href='monorail.php'>Journey</a></div>";
+        }
         if ($ir['hospital']) {
             echo "<div class='notice n-hosp'><b>In hospital</b> for {$ir['hospital']} minutes.</div>";
         }

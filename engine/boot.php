@@ -49,6 +49,7 @@ require_once __DIR__ . '/mods/Loan.php';
 require_once __DIR__ . '/mods/Tickets.php';
 require_once __DIR__ . '/mods/Contacts.php';
 require_once __DIR__ . '/mods/Merits.php';
+require_once __DIR__ . '/mods/Travel.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';
@@ -170,6 +171,14 @@ check_level();
 if ($MCC_BOOT === 'player' && function_exists('loan_collect')) {
     loan_collect($userid);     // does nothing unless this player has a loan past its term
 }
+$MCC_TRIP = null;
+if ($MCC_BOOT === 'player') {
+    $arrived = travel_arrive($userid);
+    if ($arrived !== null) {
+        $ir['location'] = $arrived;
+    }
+    $MCC_TRIP = travel_of($userid);
+}
 $h = new headers();
 if (!isset($nohdr) || !$nohdr) {
     $h->startheaders();
@@ -193,4 +202,15 @@ if (!isset($nohdr) || !$nohdr) {
             $h->menuarea();
         }
     }
+}
+// on a journey: only the pages that make sense from a seat
+if ($MCC_TRIP !== null && !in_array(basename((string)$_SERVER['SCRIPT_NAME']), MCC_TRAVEL_PAGES, true)) {
+    if (isset($nohdr) && $nohdr) {
+        http_response_code(409);
+        exit('You are travelling.');
+    }
+    echo '<h3>On the road</h3><p>You are on your way to <b>' . e($MCC_TRIP['cityname']) . '</b> and arrive in ' . travel_clock($MCC_TRIP['left'])
+        . ". This will have to wait until you get there.</p><p>&gt; <a href='monorail.php'>Your journey</a> &middot; <a href='index.php'>Home</a></p>";
+    $h->endpage();
+    exit;
 }

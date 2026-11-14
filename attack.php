@@ -377,6 +377,12 @@ elseif ($youdata['energy'] < $youdata['maxenergy'] / 2)
     $h->endpage();
     exit;
 }
+elseif (travel_of((int)$odata['userid']) !== null)
+{
+    echo 'They are travelling and out of reach. Try again when they arrive.<br />&gt; <a href="index.php">Go Home</a>';
+    $h->endpage();
+    exit;
+}
 elseif ($youdata['location'] != $odata['location'])
 {
     echo 'You can only attack someone in the same location!<br />&gt; <a href="index.php">Go Home</a>';

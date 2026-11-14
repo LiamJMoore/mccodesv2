@@ -52,6 +52,7 @@ echo $section('Shops and markets', [
     ui_card('auction.php', 'ticket', 'Auction House', 'Bid on what other players are selling.'),
     ui_card('estate.php', 'home', 'Estate Agent', 'A bigger house means more will.'),
     ui_card('monorail.php', 'plane', 'Travel Agency', 'Take the monorail to another city.', 'cyan'),
+    ui_card('vehicles.php', 'plane', 'Garage', 'Your own vehicle: no ticket, quicker journeys.'),
 ]);
 echo $section('Try your luck', [
     ui_card('lottery.php', 'ticket', 'Lottery', 'One ticket wins the pot at midnight.', 'gold'),
