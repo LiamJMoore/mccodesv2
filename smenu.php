@@ -18,6 +18,7 @@ echo "<a href='index.php'>Back To Game</a><hr />
 <b>General</b><br />
 <a href='staff_dashboard.php'>Dashboard</a><br />
 <a href='staff_ledger.php'>Ledger</a><br />
+<a href='staff_tickets.php'>Support Tickets" . (ticket_waiting() > 0 ? ' (' . ticket_waiting() . ')' : '') . "</a><br />
 <a href='staff.php'>Index</a><br />";
 if (check_access('administrator')) {
     echo "

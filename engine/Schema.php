@@ -310,6 +310,37 @@ const MCC_SCHEMA_STEPS = [
               KEY `closing` (`status`, `ends`),
               KEY `by_seller` (`seller`, `status`)
           ) ENGINE=InnoDB"],
+    // 18: the loan shark and support tickets
+    18 => ["CREATE TABLE IF NOT EXISTS `v3_loans` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `principal` BIGINT NOT NULL,
+              `repaid` BIGINT NOT NULL DEFAULT 0,
+              `taken` INT NOT NULL,
+              `due` INT NOT NULL,
+              `chased` INT NOT NULL DEFAULT 0,
+              KEY `overdue` (`due`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_tickets` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `userid` INT NOT NULL,
+              `topic` VARCHAR(20) NOT NULL,
+              `subject` VARCHAR(100) NOT NULL,
+              `status` ENUM('waiting', 'answered', 'closed') NOT NULL DEFAULT 'waiting',
+              `opened` INT NOT NULL,
+              `updated` INT NOT NULL,
+              KEY `by_player` (`userid`, `status`),
+              KEY `queue` (`status`, `updated`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_ticket_posts` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `ticket` INT NOT NULL,
+              `author` INT NOT NULL,
+              `staff` TINYINT NOT NULL DEFAULT 0,
+              `at` INT NOT NULL,
+              `text` TEXT NOT NULL,
+              KEY `in_ticket` (`ticket`, `id`),
+              KEY `by_author` (`author`, `at`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

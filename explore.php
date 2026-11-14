@@ -25,6 +25,7 @@ echo $section('Make money', [
     ui_card('invest.php', 'vault', 'Investment Bank', 'Lock money away for interest.', 'gold'),
     ui_card('job.php', 'briefcase', 'Your Job', 'A steady wage and a career.'),
     ui_card('bank.php', 'bank', 'City Bank', 'Keep your money safe from muggers.'),
+    ui_card('loanshark.php', 'bank', 'Loan Shark', 'Cash now, more back later.'),
     $ir['location'] == 5 ? ui_card('cyberbank.php', 'bank', 'Cyber Bank', 'An offshore account.') : '',
 ]);
 echo $section('Get stronger', [

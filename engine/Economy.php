@@ -225,7 +225,7 @@ function ledger_label(string $page, string $note = ''): string
         'daily.php' => 'Daily reward', 'missions.php' => 'Mission', 'season.php' => 'Season pass', 'bounties.php' => 'Bounty', 'attackwon.php' => 'Fight', 'attackbeat.php' => 'Fight', 'attacktake.php' => 'Fight',
         'stocks.php' => 'Stock market', 'trade.php' => 'Trading post', 'invest.php' => 'Investment bank', 'lottery.php' => 'Lottery', 'pet.php' => 'Pet', 'craft.php' => 'Workshop', 'crystalshop.php' => 'Crystal shop',
         'crystaltemple.php' => 'Crystal temple', 'slotsmachine.php' => 'Slots', 'roulette.php' => 'Roulette', 'lucky.php' => 'Lucky boxes', 'estate.php' => 'Estate agent', 'monorail.php' => 'Travel',
-        'jailbail.php' => 'Bail', 'yourgang.php' => 'Gang', 'creategang.php' => 'Founded a gang', 'stripe_webhook.php' => 'Store purchase', 'marriage.php' => 'Marriage', 'auction.php' => 'Auction house'];
+        'jailbail.php' => 'Bail', 'yourgang.php' => 'Gang', 'creategang.php' => 'Founded a gang', 'stripe_webhook.php' => 'Store purchase', 'marriage.php' => 'Marriage', 'auction.php' => 'Auction house', 'loanshark.php' => 'Loan shark'];
     $name = $names[$page] ?? ucfirst(str_replace(['.php', '_'], ['', ' '], $page));
     return $note !== '' ? "{$name}: {$note}" : $name;
 }

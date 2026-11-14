@@ -36,6 +36,8 @@ require 'engine/mods/Profile.php';
 require 'engine/mods/Home.php';
 require 'engine/mods/Marriage.php';
 require 'engine/mods/Auction.php';
+require 'engine/mods/Loan.php';
+require 'engine/mods/Tickets.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -870,6 +872,55 @@ foreach (['v3_auctions', 'inventory', 'events', 'v3_ledger', 'v3_proposals', 'v3
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `maxwill` = 100, `will` = 100, `new_events` = 0');
+
+// the loan shark
+$db->exec('UPDATE `users` SET `money` = 0, `bankmoney` = 0, `hospital` = 0, `hp` = 100');
+$t0 = 1800000000;
+check(loan_take(2, 100, 1, $t0) !== null && loan_take(2, 5001, 1, $t0) !== null && loan_take(2, 4000, 1, $t0) === null && $bal(2)['money'] === 4000 && loan_take(2, 1000, 1, $t0) !== null && $bal(2)['money'] === 4000,
+    'he lends within the limit for your level, and one loan at a time');
+$l = loan_of(2, $t0);
+$l3 = loan_of(2, $t0 + 3 * 86400 + 5);
+check($l['owed'] === 4200 && !$l['overdue'] && $l3['owed'] === 4800 && loan_of(2, $t0 + 8 * 86400)['overdue'] && loan_of(3) === null, 'interest is 5% of the amount borrowed for each day started, and the loan is overdue after a week');
+check(loan_repay(2, 1000, $t0) === 1000 && $bal(2)['money'] === 3000 && loan_of(2, $t0)['owed'] === 3200 && loan_repay(2, 99999, $t0) === 0 && loan_repay(3, 10, $t0) === 0, 'part can be paid back; you cannot pay what you do not have');
+$db->exec('UPDATE `users` SET `money` = 50000 WHERE `userid` = 2');
+check(loan_repay(2, 99999, $t0) === 3200 && $bal(2)['money'] === 46800 && loan_of(2) === null && loan_repay(2, 10, $t0) === 0, 'paying it off never takes more than is owed, and clears the loan');
+$db->exec('UPDATE `users` SET `money` = 0 WHERE `userid` = 2');
+loan_take(2, 2000, 1, $t0);
+$db->exec('UPDATE `users` SET `money` = 300, `bankmoney` = 500 WHERE `userid` = 2');
+check(loan_collect(2, $t0 + 86400) === null && $bal(2)['money'] === 300, 'the collectors leave a loan alone until it is overdue');
+$late = $t0 + 8 * 86400;
+$owed = loan_of(2, $late)['owed'];
+$c = loan_collect(2, $late);
+check($owed === 2900 && $c === ['took' => 800, 'cleared' => false] && $bal(2)['money'] === 0 && $bal(2)['bankmoney'] === 0 && (int)$user(2)['hospital'] === MCC_LOAN_HOSPITAL && loan_of(2, $late)['owed'] === 2100
+    && loan_collect(2, $late + 3600) === null, 'overdue: they take the pocket and the bank, put the debtor in hospital, and do not call twice in a day');
+$db->exec('UPDATE `users` SET `money` = 90000, `hospital` = 0 WHERE `userid` = 2');
+$owed = loan_of(2, $late + 86400)['owed'];
+$c = loan_collect(2, $late + 86400);
+check($c === ['took' => $owed, 'cleared' => true] && $bal(2)['money'] === 90000 - $owed && loan_of(2) === null && (int)$user(2)['hospital'] === 0, 'when there is enough they take exactly what is owed and the debt is gone');
+check((int)$db->value("SELECT COUNT(*) FROM `v3_ledger` WHERE `userid` = 2") >= 5, 'every loan movement is in the ledger');
+
+// support tickets
+foreach (['v3_tickets', 'v3_ticket_posts', 'events', 'v3_loans', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+check(is_string(ticket_open(2, 'nonsense', 'Hi', 'text')) && is_string(ticket_open(2, 'bug', '', 'text')) && is_string(ticket_open(2, 'bug', 'Hi', str_repeat('x', MCC_TICKET_MAX + 1))), 'a ticket needs a real topic, a subject and a message of sensible length');
+$tk = ticket_open(2, 'bug', 'The gym  is  broken', "It ate my energy\r\n<script>alert(1)</script>");
+check(is_int($tk) && ticket_get($tk, 2, false) !== null && ticket_get($tk, 3, false) === null && ticket_get($tk, 3, true) !== null && ticket_get($tk, 2, false)['subject'] === 'The gym is broken',
+    'a ticket can be read by its owner and by staff, and by nobody else');
+check(!str_contains(ticket_view(ticket_get($tk, 2, false), 2, false, 'tickets.php'), '<script>'), 'a ticket is shown as plain text');
+$n = time() + 100;
+check(ticket_reply($tk, 3, false, 'let me in', $n) !== null && ticket_reply($tk, 1, true, 'We are looking into it.', $n) === null && ticket_get($tk, 2, false)['status'] === 'answered'
+    && (int)$db->value('SELECT COUNT(*) FROM `events` WHERE `evUSER` = 2') === 1 && ticket_reply($tk, 1, true, 'again', $n + 5) !== null && ticket_reply($tk, 2, false, 'Thanks', $n + 200) === null
+    && ticket_get($tk, 2, false)['status'] === 'waiting' && ticket_waiting() === 1, 'a staff reply marks it answered and tells the player; the player\'s reply puts it back in the queue; messages cannot be spammed');
+check(!ticket_close($tk, 3, false) && ticket_close($tk, 2, false) && !ticket_close($tk, 2, false) && ticket_reply($tk, 2, false, 'more', $n + 900) !== null && ticket_waiting() === 0, 'only the owner or staff can close a ticket, and a closed ticket takes no more messages');
+ticket_open(2, 'bug', 'a', 'a');
+ticket_open(2, 'bug', 'b', 'b');
+ticket_open(2, 'bug', 'c', 'c');
+check(is_string(ticket_open(2, 'bug', 'd', 'd')) && is_int(ticket_open(3, 'other', 'e', 'e')), 'a player can have three tickets open at once');
+foreach (['v3_tickets', 'v3_ticket_posts', 'events', 'v3_loans', 'v3_ledger'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `bankmoney` = 0, `crystals` = 10, `hospital` = 0, `hp` = 100, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

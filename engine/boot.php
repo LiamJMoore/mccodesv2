@@ -45,6 +45,8 @@ require_once __DIR__ . '/mods/Profile.php';
 require_once __DIR__ . '/mods/Home.php';
 require_once __DIR__ . '/mods/Marriage.php';
 require_once __DIR__ . '/mods/Auction.php';
+require_once __DIR__ . '/mods/Loan.php';
+require_once __DIR__ . '/mods/Tickets.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';
@@ -163,6 +165,9 @@ if ($MCC_BOOT === 'staff') {
 }
 
 check_level();
+if ($MCC_BOOT === 'player' && function_exists('loan_collect')) {
+    loan_collect($userid);     // does nothing unless this player has a loan past its term
+}
 $h = new headers();
 if (!isset($nohdr) || !$nohdr) {
     $h->startheaders();

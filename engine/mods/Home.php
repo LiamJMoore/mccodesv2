@@ -39,6 +39,10 @@ function home_suggestions(array $ir): array
         $next = array_values(array_filter($missions, fn ($m) => (int)$m['progress'] < (int)$m['target']))[0];
         $add(40, 'missions.php', 'target', 'Today\'s missions', mission_text($next) . " ({$next['progress']} of {$next['target']}). {$open} still open.");
     }
+    $loan = loan_of($id);
+    if ($loan !== null && ($loan['overdue'] || $loan['due'] - time() < 2 * 86400)) {
+        $add(92, 'loanshark.php', 'bank', $loan['overdue'] ? 'Your loan is overdue' : 'Your loan is due soon', 'You owe ' . money_formatter($loan['owed']) . '. His men collect what they can find.', true);
+    }
     $inv = invest_of($id);
     if ($inv !== null && $inv['ready']) {
         $add(83, 'invest.php', 'vault', 'Your investment has matured', money_formatter($inv['amount'] + $inv['interest']) . ' is ready to collect.', true);

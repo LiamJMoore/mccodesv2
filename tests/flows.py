@@ -1324,6 +1324,56 @@ def couples(srv):
     sql("UPDATE users SET money = 100, crystals = 10, maxwill = 100, will = 100, new_events = 0")
 
 
+
+def lending(srv):
+    print("The loan shark and support tickets")
+    for t in ("v3_loans", "v3_tickets", "v3_ticket_posts", "events", "v3_ledger"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 0, bankmoney = 0, hospital = 0, jail = 0, hp = 100, level = 1")
+    out = many(srv, "player1", "playerpass1", 6, "/loanshark.php", {"do": "borrow", "amount": "5000"}, token_path="/loanshark.php")
+    check(sum("He counts it out" in x for x in out) == 1 and balances(2)["money"] == 5000 and one("SELECT COUNT(*) FROM v3_loans") == "1", "six logins borrowing at once: one loan", balances(2)["money"])
+    sql("UPDATE users SET money = 20000 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/loanshark.php", {"do": "repay", "amount": "5250"}, token_path="/loanshark.php")
+    check(sum("Paid $5,250" in x for x in out) == 1 and balances(2)["money"] == 14750 and one("SELECT COUNT(*) FROM v3_loans") == "0", "six logins paying it off at once: paid once", balances(2)["money"])
+    # overdue: the collectors call when the debtor next loads a page
+    a = Session(srv.base)
+    a.login("player1", "playerpass1")
+    a.form("/loanshark.php", {"do": "borrow", "amount": "2000"})
+    sql("UPDATE users SET money = 400, bankmoney = 0 WHERE userid = 2")
+    sql("UPDATE v3_loans SET taken = taken - 8 * 86400, due = due - 8 * 86400")
+    many(srv, "player1", "playerpass1", 6, "/explore.php")
+    check(balances(2)["money"] == 0 and one("SELECT repaid FROM v3_loans") == "400" and one("SELECT hospital FROM users WHERE userid = 2") != "0" and one("SELECT COUNT(*) FROM events WHERE evUSER = 2") == "1",
+          "six page loads by an overdue debtor: the collectors call once", one("SELECT repaid FROM v3_loans"))
+    sql("DELETE FROM v3_loans")
+    sql("UPDATE users SET hospital = 0, hp = 100")
+    sql("DELETE FROM events")
+    # tickets
+    a.form("/tickets.php", {"do": "open", "topic": "bug", "subject": "Gym <b>broken</b>", "text": "It ate my energy <img src=x onerror=alert(1)>"})
+    tid = one("SELECT id FROM v3_tickets")
+    _, _, body = a.get(f"/tickets.php?id={tid}")
+    check(tid != "" and "<img src=x" not in body and "&lt;img" in body and "Gym &lt;b&gt;" in body, "a ticket opens and is shown as plain text")
+    b = Session(srv.base)
+    b.login("player2", "playerpass2")
+    _, _, body = b.get(f"/tickets.php?id={tid}")
+    check("It ate my energy" not in body, "another player cannot read it")
+    b.form(f"/tickets.php?id={tid}", {"do": "reply", "text": "me too"}, token_from="/tickets.php")
+    check(one("SELECT COUNT(*) FROM v3_ticket_posts") == "1", "nor add to it")
+    _, _, body = b.get(f"/staff_tickets.php?id={tid}")
+    check("It ate my energy" not in body, "nor reach it through the staff page")
+    adm = Session(srv.base)
+    adm.login("admin", "adminpass1")
+    _, _, body = adm.get("/staff_tickets.php")
+    check("Waiting on staff" in body and "Gym &lt;b&gt;" in body, "staff see it in the queue")
+    adm.form(f"/staff_tickets.php?id={tid}", {"do": "reply", "text": "Fixed, thank you."}, token_from=f"/staff_tickets.php?id={tid}")
+    check(one("SELECT status FROM v3_tickets") == "answered" and one("SELECT COUNT(*) FROM events WHERE evUSER = 2") == "1" and "support ticket" in one("SELECT GROUP_CONCAT(action) FROM stafflog"),
+          "a staff reply marks it answered, tells the player, and is in the staff log")
+    _, _, body = a.get(f"/tickets.php?id={tid}")
+    check("Fixed, thank you." in body and "admin" not in body.split("Fixed, thank you.")[0].split("profile-comment")[-1], "the player sees the reply, signed Staff")
+    for t in ("v3_loans", "v3_tickets", "v3_ticket_posts", "events", "v3_ledger"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, bankmoney = 0, crystals = 10, hospital = 0, hp = 100, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1360,6 +1410,7 @@ def main():
         home(srv)
         ledger(srv)
         couples(srv)
+        lending(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

@@ -584,3 +584,5 @@ a.tile{color:var(--ink)!important}
 
 .amt-in{color:var(--good);font-variant-numeric:tabular-nums;font-weight:600}
 .amt-out{color:var(--bad);font-variant-numeric:tabular-nums;font-weight:600}
+
+.profile-comment.from-staff{border-color:rgba(212,175,55,.45);background:rgba(212,175,55,.07)}
