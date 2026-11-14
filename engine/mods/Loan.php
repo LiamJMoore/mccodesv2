@@ -32,7 +32,7 @@ function loan_of(int $userid, ?int $now = null): ?array
     }
     $l = array_map('intval', $l);
     $days = 1 + intdiv(max(0, $now - $l['taken']), 86400);                  // the first day's interest is charged at once
-    $l['interest'] = intdiv($l['principal'] * MCC_LOAN_DAILY_PERMILLE * $days, 1000);
+    $l['interest'] = intdiv($l['principal'] * loan_rate_permille($userid) * $days, 1000);
     $l['owed'] = max(0, $l['principal'] + $l['interest'] - $l['repaid']);
     $l['overdue'] = $now > $l['due'];
     return $l;
@@ -118,4 +118,10 @@ function loan_collect(int $userid, ?int $now = null): ?array
         return true;
     });
     return $out;
+}
+
+/** The daily interest this player is charged, in thousandths: the standard rate, less their merit upgrade. */
+function loan_rate_permille(int $userid): int
+{
+    return function_exists('merit_rate') ? merit_rate($userid, 'loan', MCC_LOAN_DAILY_PERMILLE) : MCC_LOAN_DAILY_PERMILLE;
 }

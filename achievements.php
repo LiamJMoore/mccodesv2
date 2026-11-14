@@ -18,7 +18,7 @@ if ($who === $userid) {
 $earned = achievements_earned($who);
 $totals = progress_all($who);
 echo '<h3>' . ($name === null ? 'Your Achievements' : 'Achievements of ' . e((string)$name)) . '</h3>
-<p><b>' . count(array_intersect_key($earned, MCC_ACHIEVEMENTS)) . '</b> of ' . count(MCC_ACHIEVEMENTS) . " unlocked.</p>
+<p><b>' . count(array_intersect_key($earned, MCC_ACHIEVEMENTS)) . '</b> of ' . count(MCC_ACHIEVEMENTS) . " unlocked." . ($name === null ? " Each is worth a merit: <a href='merits.php'>spend your merits</a>." : '') . "</p>
 <table width='90%' cellspacing='1' class='table'><tr><th>Achievement</th><th>How</th><th>Progress</th><th>Reward</th></tr>";
 foreach (MCC_ACHIEVEMENTS as $key => $a) {
     $have = isset($earned[$key]);

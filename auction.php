@@ -27,7 +27,7 @@ $left = function (int $ends): string {
     return $s >= 86400 ? intdiv($s, 86400) . 'd ' . intdiv($s % 86400, 3600) . 'h' : ($s >= 3600 ? intdiv($s, 3600) . 'h ' . intdiv($s % 3600, 60) . 'm' : intdiv($s, 60) . 'm ' . ($s % 60) . 's');
 };
 $money = (int)$db->value('SELECT `money` FROM `users` WHERE `userid` = ?', [$userid]);
-echo '<p>Bid on what other players are selling. A bid is taken from your pocket when you make it and returned the moment you are outbid. The house keeps ' . MCC_AUCTION_CUT_PERCENT . '% of each sale. You have ' . money_formatter($money) . '.</p>';
+echo '<p>Bid on what other players are selling. A bid is taken from your pocket when you make it and returned the moment you are outbid. The house keeps ' . (auction_cut_permille($userid) / 10) . '% of what you sell. You have ' . money_formatter($money) . '.</p>';
 $open = auction_open();
 echo "<table width='100%' cellspacing='1' class='table'><tr><th>Lot</th><th>Seller</th><th>Current bid</th><th>Closes in</th><th></th></tr>";
 foreach ($open as $a) {

@@ -49,6 +49,7 @@ echo ui_group('Rewards', [
     ui_link('missions.php', 'target', 'Missions'),
     ui_link('season.php', 'star', 'Season Pass', $mcc_season, $mcc_season > 0),
     ui_link('achievements.php', 'medal', 'Achievements'),
+    ui_link('merits.php', 'star', 'Merits'),
 ]);
 echo ui_group('Money', [
     ui_link('trade.php', 'crate', 'Trading Post'),

@@ -48,6 +48,7 @@ require_once __DIR__ . '/mods/Auction.php';
 require_once __DIR__ . '/mods/Loan.php';
 require_once __DIR__ . '/mods/Tickets.php';
 require_once __DIR__ . '/mods/Contacts.php';
+require_once __DIR__ . '/mods/Merits.php';
 require_once __DIR__ . '/mods/Notify.php';
 require_once __DIR__ . '/mods/Api.php';
 require_once __DIR__ . '/mods/Dashboard.php';

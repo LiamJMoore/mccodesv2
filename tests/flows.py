@@ -1412,6 +1412,27 @@ def lists(srv):
     sql("UPDATE users SET friend_count = 0, enemy_count = 0, donatordays = 0")
 
 
+
+def merits(srv):
+    print("Merits")
+    sql("DELETE FROM v3_merits")
+    sql("DELETE FROM v3_achievements")
+    sql("INSERT INTO v3_achievements (userid, ach, earned) VALUES (2, 'crimes_10', 1), (2, 'gym_100', 1), (2, 'fights_1', 1)")
+    a = Session(srv.base)
+    a.login("player1", "playerpass1")
+    _, _, body = a.get("/merits.php")
+    check("Creature of Habit" in body and "Upgrade for 1 merit" in body, "the merits page offers the upgrades")
+    # 3 merits: level 1 (1) and level 2 (2) of one upgrade is all they buy, however many requests arrive together
+    many(srv, "player1", "playerpass1", 8, "/merits.php", {"perk": "daily"}, token_path="/merits.php")
+    a.form("/merits.php", {"perk": "loan"})
+    check(one("SELECT level FROM v3_merits WHERE userid = 2 AND perk = 'daily'") == "2" and one("SELECT COALESCE(SUM(level), 0) FROM v3_merits WHERE userid = 2") == "2",
+          "eight purchases at once, then another: never more merits spent than were earned", one("SELECT COALESCE(SUM(level), 0) FROM v3_merits WHERE userid = 2"))
+    _, _, body = a.get("/merits.php")
+    check("10% more" in body and "Needs 1 merit" in body, "the page shows what the upgrade now gives and that the merits are gone")
+    sql("DELETE FROM v3_merits")
+    sql("DELETE FROM v3_achievements")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1450,6 +1471,7 @@ def main():
         couples(srv)
         lending(srv)
         lists(srv)
+        merits(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $l = loan_of($userid);
 $money = (int)$db->value('SELECT `money` FROM `users` WHERE `userid` = ?', [$userid]);
 $token = request_csrf_html('loan');
-echo '<p>Cash now, more back later. He adds ' . (MCC_LOAN_DAILY_PERMILLE / 10) . '% of what you borrowed every day, starting today, and wants it all within ' . MCC_LOAN_TERM_DAYS
+echo '<p>Cash now, more back later. He adds ' . (loan_rate_permille($userid) / 10) . '% of what you borrowed every day, starting today, and wants it all within ' . MCC_LOAN_TERM_DAYS
     . ' days. After that his men come for it: they take what is in your pocket and your bank, and if that is not enough they put you in hospital and come back tomorrow.</p>';
 if ($l === null) {
     echo "<form action='loanshark.php' method='post'>{$token}<input type='hidden' name='do' value='borrow' />Borrow \$<input type='text' name='amount' size='10' value='" . loan_max((int)$ir['level']) . "' /> <input type='submit' value='Borrow' />

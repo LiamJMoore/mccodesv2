@@ -346,6 +346,13 @@ const MCC_SCHEMA_STEPS = [
            'ALTER TABLE `friendslist` ADD INDEX `v3_adder` (`fl_ADDER`)',
            'ALTER TABLE `blacklist` ADD INDEX `v3_adder` (`bl_ADDER`)',
            'ALTER TABLE `contactlist` ADD INDEX `v3_adder` (`cl_ADDER`)'],
+    // 20: merit upgrades
+    20 => ['CREATE TABLE IF NOT EXISTS `v3_merits` (
+              `userid` INT NOT NULL,
+              `perk` VARCHAR(20) NOT NULL,
+              `level` TINYINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `perk`)
+          ) ENGINE=InnoDB'],
 ];
 
 function schema_latest(): int

@@ -112,12 +112,13 @@ function auction_settle(?int $now = null): int
             }
             $what = (int)$a['qty'] . ' x ' . ($a['itmname'] ?? 'item');
             if ((int)$a['bidder'] > 0) {
-                $cut = (int)ceil((int)$a['bid'] * MCC_AUCTION_CUT_PERCENT / 100);
+                $rate = auction_cut_permille((int)$a['seller']);
+                $cut = (int)ceil((int)$a['bid'] * $rate / 1000);
                 $db->exec("UPDATE `v3_auctions` SET `status` = 'sold' WHERE `id` = ?", [(int)$a['id']]);
                 item_add((int)$a['bidder'], (int)$a['item'], (int)$a['qty']);
                 wallet_give((int)$a['seller'], 'money', (int)$a['bid'] - $cut);
                 event_add((int)$a['bidder'], 'You won the auction for ' . e($what) . ' at ' . money_formatter((int)$a['bid']) . '. It is in your inventory.');
-                event_add((int)$a['seller'], 'Your auction of ' . e($what) . ' sold for ' . money_formatter((int)$a['bid']) . '. After the house\'s ' . MCC_AUCTION_CUT_PERCENT . '% you received ' . money_formatter((int)$a['bid'] - $cut) . '.');
+                event_add((int)$a['seller'], 'Your auction of ' . e($what) . ' sold for ' . money_formatter((int)$a['bid']) . '. After the house\'s ' . ($rate / 10) . '% you received ' . money_formatter((int)$a['bid'] - $cut) . '.');
             } else {
                 $db->exec("UPDATE `v3_auctions` SET `status` = 'expired' WHERE `id` = ?", [(int)$a['id']]);
                 item_add((int)$a['seller'], (int)$a['item'], (int)$a['qty']);
@@ -136,4 +137,10 @@ function auction_open(int $limit = 60): array
     return $db->all("SELECT `a`.*, `i`.`itmname`, `s`.`username` AS `sname`, `b`.`username` AS `bname` FROM `v3_auctions` AS `a` LEFT JOIN `items` AS `i` ON `i`.`itmid` = `a`.`item`
                      LEFT JOIN `users` AS `s` ON `s`.`userid` = `a`.`seller` LEFT JOIN `users` AS `b` ON `b`.`userid` = `a`.`bidder`
                      WHERE `a`.`status` = 'open' ORDER BY `a`.`ends` LIMIT " . max(1, min($limit, 200)));
+}
+
+/** The house's cut of this seller's sales, in thousandths: the standard cut, less their merit upgrade. */
+function auction_cut_permille(int $seller): int
+{
+    return function_exists('merit_rate') ? merit_rate($seller, 'auction', MCC_AUCTION_CUT_PERCENT * 10) : MCC_AUCTION_CUT_PERCENT * 10;
 }

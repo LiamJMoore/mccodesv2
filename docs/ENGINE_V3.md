@@ -117,6 +117,8 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Auction house | `auction.php` | `Auction.php` | Bids are paid when made and returned when beaten; 5% of each sale leaves the game |
 | Loan shark | `loanshark.php` | `Loan.php` | One loan at a time, 5% a day on the amount borrowed, a week to pay; overdue debts are collected from pocket and bank |
 | Support tickets | `tickets.php`, `staff_tickets.php` | `Tickets.php` | Plain-text conversations between a player and staff; replies are in the staff log |
+| Friends, black list, contacts | `friendslist.php`, `blacklist.php`, `contactlist.php` | `Contacts.php` | The v2 lists on one safe piece of code; also the mugger of the hour |
+| Merits | `merits.php` | `Merits.php` | One merit per achievement, spent on four small permanent upgrades (daily reward, mission pay, auction cut, loan interest) |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:

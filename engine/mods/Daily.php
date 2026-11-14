@@ -68,6 +68,7 @@ function daily_claim(int $userid, int $level = 1, ?string $today = null): ?array
         }
         $day = (int)$db->value('SELECT `streak` FROM `v3_daily` WHERE `userid` = ?', [$userid]);
         $reward = daily_reward($day, $level);
+        $reward['money'] = function_exists('merit_boost') ? merit_boost($userid, 'daily', $reward['money']) : $reward['money'];
         wallet_give($userid, 'money', $reward['money']);
         if ($reward['crystals'] > 0) {
             wallet_give($userid, 'crystals', $reward['crystals']);

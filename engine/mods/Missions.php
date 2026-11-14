@@ -110,6 +110,7 @@ function mission_claim(int $userid, int $slot, ?string $today = null): ?array
             return false;
         }
         $money = (int)$db->value('SELECT `reward` FROM `v3_missions` WHERE `userid` = ? AND `day` = ? AND `slot` = ?', [$userid, $today, $slot]);
+        $money = function_exists('merit_boost') ? merit_boost($userid, 'missions', $money) : $money;
         wallet_give($userid, 'money', $money);
         $paid = ['money' => $money, 'crystals' => 0];
         return true;

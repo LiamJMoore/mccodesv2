@@ -39,6 +39,7 @@ require 'engine/mods/Auction.php';
 require 'engine/mods/Loan.php';
 require 'engine/mods/Tickets.php';
 require 'engine/mods/Contacts.php';
+require 'engine/mods/Merits.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -945,6 +946,42 @@ foreach (['friendslist', 'blacklist', 'contactlist', 'attacklogs'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `friend_count` = 0, `enemy_count` = 0');
+
+// merits
+foreach (['v3_merits', 'v3_achievements', 'v3_loans', 'v3_auctions', 'inventory', 'events', 'v3_ledger', 'v3_daily', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+check(merit_earned(2) === 0 && merit_buy(2, 'daily') !== null && merit_buy(2, 'nonsense') !== null && merit_levels(2) === [], 'with no achievements there is nothing to spend');
+$keys = array_keys(MCC_ACHIEVEMENTS);
+foreach (array_slice($keys, 0, 4) as $k) {
+    $db->exec('INSERT INTO `v3_achievements` (`userid`, `ach`, `earned`) VALUES (2, ?, ?)', [$k, time()]);
+}
+$db->exec("INSERT INTO `v3_achievements` (`userid`, `ach`, `earned`) VALUES (2, 'no_longer_exists', 1)");
+check(merit_earned(2) === 4 && merit_buy(2, 'daily') === null && merit_buy(2, 'daily') === null && merit_levels(2) === ['daily' => 2] && merit_spent(merit_levels(2)) === 3 && merit_buy(2, 'daily') !== null
+    && merit_buy(2, 'loan') === null && merit_buy(2, 'auction') !== null && merit_spent(merit_levels(2)) === 4, 'an achievement is one merit, level n costs n, and you cannot spend more than you have earned');
+check(merit_boost(2, 'daily', 1000) === 1100 && merit_boost(2, 'missions', 1000) === 1000 && merit_boost(3, 'daily', 1000) === 1000 && merit_rate(2, 'loan', 50) === 45 && merit_rate(3, 'loan', 50) === 50
+    && merit_rate(2, 'auction', 50) === 50, 'an upgrade changes only its own thing, only for the player who has it');
+$db->exec("INSERT INTO `v3_merits` (`userid`, `perk`, `level`) VALUES (4, 'loan', 99), (4, 'auction', 5)");
+check(merit_rate(4, 'loan', 50) === 25 && merit_rate(4, 'auction', 50) === 25 && merit_levels(4)['loan'] === 5, 'a rate never falls below half, whatever the table says');
+$db->exec('UPDATE `users` SET `money` = 0, `bankmoney` = 0');
+loan_take(2, 4000, 1, $t0);
+loan_take(3, 4000, 1, $t0);
+check(loan_of(2, $t0)['owed'] === 4180 && loan_of(3, $t0)['owed'] === 4200, 'the loan shark charges a Good Customer less');
+$base = daily_reward(1, 1)['money'];
+$got = daily_claim(2, 1, '2031-03-01');
+$plain = daily_claim(3, 1, '2031-03-01');
+check($got['money'] === $base + intdiv($base * 10, 100) && $plain['money'] === $base && $bal(2)['money'] === 4000 + $got['money'], 'the daily reward pays the upgrade, and what is shown is what was paid', $got['money']);
+item_add(4, 4, 1);
+$db->exec('UPDATE `users` SET `money` = 10000 WHERE `userid` = 3');
+$db->exec('UPDATE `users` SET `money` = 0 WHERE `userid` = 4');
+$am = auction_list(4, (int)$db->value('SELECT `inv_id` FROM `inventory` WHERE `inv_userid` = 4'), 1, 1000, 1);
+auction_bid(3, $am, 1000);
+auction_settle(time() + 9000);
+check($bal(4)['money'] === 975, 'the auction house takes 2.5% from a Friend of the House at the top level', $bal(4)['money']);
+foreach (['v3_merits', 'v3_achievements', 'v3_loans', 'v3_auctions', 'inventory', 'events', 'v3_ledger', 'v3_daily', 'v3_missions'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `bankmoney` = 0, `crystals` = 10, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);
