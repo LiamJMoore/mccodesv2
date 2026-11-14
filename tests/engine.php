@@ -30,6 +30,9 @@ require 'engine/mods/Stocks.php';
 require 'engine/mods/Turf.php';
 require 'engine/mods/Lottery.php';
 require 'engine/mods/Pets.php';
+require 'engine/mods/Trade.php';
+require 'engine/mods/Invest.php';
+require 'engine/mods/Profile.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -709,6 +712,66 @@ foreach (['v3_pets', 'v3_perk_uses'] as $t) {
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `energy` = 12');
+
+// travel trading
+foreach (['v3_trade_stock', 'v3_trade_cargo', 'v3_perk_uses', 'v3_progress', 'v3_achievements', 'v3_missions', 'v3_season'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$origins = trade_origins();
+$here = array_keys($origins, 1, true);
+$there = array_keys($origins, 2, true);
+check(count($origins) === 9 && count($here) === 3 && count($there) === 3 && trade_capacity(1) === 11 && trade_capacity(500) === MCC_TRADE_CARRY_MAX && trade_sell_price('cigars') === 810,
+    'each city makes three goods, a player carries more with level, and a good is worth 35% more away from home', $origins);
+$g = $here[0];
+$price = MCC_TRADE_GOODS[$g][1];
+$db->exec('UPDATE `users` SET `money` = 1000000, `location` = 1, `level` = 1 WHERE `userid` = 2');
+$t0 = time();
+$full = trade_stock(1, $t0)[$g];
+check($full === MCC_TRADE_GOODS[$g][2] && trade_buy(2, $there[0], 1) !== null && trade_buy(2, $g, 0) !== null && trade_buy(2, $g, 12) !== null && $bal(2)['money'] === 1000000 && trade_buy(2, $g, 11) === null
+    && $bal(2)['money'] === 1000000 - 11 * $price && trade_stock(1, $t0)[$g] === $full - 11 && trade_cargo(2)[$g] === ['qty' => 11, 'paid' => 11 * $price] && trade_buy(2, $g, 1) !== null,
+    'goods are bought where they are made, up to what the player can carry, and come off the shelf');
+$home = trade_sell(2, $g, 1);
+check($home === ['got' => $price, 'profit' => 0], 'sold where it was made, a good fetches only what it cost', $home);
+$db->exec('UPDATE `users` SET `location` = 2 WHERE `userid` = 2');
+$away = trade_sell(2, $g, 10);
+check($away['profit'] === 10 * (trade_sell_price($g) - $price) && $bal(2)['money'] === 1000000 + $away['profit'] && trade_cargo(2) === [] && is_string(trade_sell(2, $g, 1)) && progress_get(2, 'trade_profit') === $away['profit'],
+    'carried to another city it sells for the mark-up, and you cannot sell what you are not carrying', $away);
+$db->exec('UPDATE `users` SET `location` = 1 WHERE `userid` = 2');
+check(trade_buy(2, $g, 11) === null && trade_sell(2, $g, 11) !== null && trade_buy(2, $g, 11) === null && is_array(trade_sell(2, $g, 11)) && str_contains((string)trade_buy(2, $g, 1), 'Customs'),
+    'customs stop a player buying more than three loads in a day');
+$db->exec('UPDATE `v3_trade_stock` SET `stock` = 0, `at` = ? WHERE `city` = 1 AND `good` = ?', [$t0, $g]);
+check(trade_stock(1, $t0)[$g] === 0 && trade_buy(2, $g, 1, '2031-01-01') !== null && trade_stock(1, $t0 + 3 * 3600)[$g] === intdiv($full, 2) && trade_stock(1, $t0 + 30 * 3600)[$g] === $full,
+    'an empty shelf sells nothing, and refills over six hours');
+
+// investments
+$db->exec('DELETE FROM `v3_investments`');
+$db->exec('UPDATE `users` SET `money` = 200000, `location` = 1 WHERE `userid` = 2');
+check(invest_open(2, 500, 7, 1) !== null && invest_open(2, 100001, 7, 1) !== null && invest_open(2, 1000, 9, 1) !== null && invest_open(2, 100000, 30, 1, 1000) === null && $bal(2)['money'] === 100000
+    && invest_open(2, 5000, 7, 1) !== null && $bal(2)['money'] === 100000 && invest_of(2, 1000)['interest'] === 18000 && !invest_of(2, 1000)['ready'], 'one investment at a time, within the limits for the level');
+check(invest_close(2, 1000 + 29 * 86400) === ['paid' => 100000, 'interest' => 0] && $bal(2)['money'] === 200000 && invest_close(2) === null, 'taken out early it pays back what was put in, once, with no interest');
+invest_open(2, 100000, 7, 1, 1000);
+check(invest_close(2, 1000 + 7 * 86400) === ['paid' => 103000, 'interest' => 3000] && $bal(2)['money'] === 203000, 'left to mature it pays its interest');
+
+// profiles
+$db->exec('DELETE FROM `v3_profile_comments`');
+$db->exec('DELETE FROM `events`');
+check(profile_rank(1) === 'Nobody' && profile_rank(12) === 'Hustler' && profile_rank(9999) === 'Legend', 'a level has a rank title');
+$card = profile_card(['userid' => 2, 'level' => 12, 'signedup' => time() - 40 * 86400, 'hospital' => 5, 'hospreason' => 'Mugged', 'jail' => 0, 'jail_reason' => '', 'laston' => time()]);
+check(str_contains($card, 'In hospital') && str_contains($card, 'Hustler') && str_contains($card, '<b>40</b>') && str_contains($card, 'Online'), 'the profile card shows rank, age, and a banner when in hospital');
+check(profile_comment_add(3, 2, '', 5000) !== null && profile_comment_add(3, 2, str_repeat('x', 241), 5000) !== null && profile_comment_add(3, 99999, 'hi', 5000) !== null
+    && profile_comment_add(3, 2, "  <script>alert(1)</script>  nice\n profile ", 5000) === null && profile_comment_add(3, 2, 'again', 5030) !== null && profile_comment_add(3, 2, 'again', 5061) === null
+    && count(profile_comments(2)) === 2 && profile_comments(2)[1]['text'] === '<script>alert(1)</script> nice profile', 'a comment is short plain text, and a player must wait between comments');
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SESSION = [];
+$block = profile_comments_block(2, 4, false);
+check(!str_contains($block, '<script>alert') && str_contains($block, '&lt;script&gt;') && !str_contains($block, "value='delete'") && str_contains(profile_comments_block(2, 2, false), "value='delete'"),
+    'comments are printed safely, and only their author, the profile\'s owner or staff are offered delete');
+$first = (int)profile_comments(2)[1]['id'];
+check(!profile_comment_delete(4, $first) && profile_comment_delete(2, $first) && profile_comment_delete(4, (int)profile_comments(2)[0]['id'], true) && profile_comments(2) === [], 'a stranger cannot delete a comment; the owner and staff can');
+foreach (['v3_trade_stock', 'v3_trade_cargo', 'v3_perk_uses', 'v3_progress', 'v3_achievements', 'v3_missions', 'v3_season', 'v3_investments', 'v3_profile_comments', 'events'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `location` = 1, `level` = 1, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

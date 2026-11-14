@@ -26,7 +26,7 @@ foreach (MCC_PROGRESS as $stat => $label) {
         continue;
     }
     $rank = api_rank($who, $stat);
-    echo '<tr><td>' . e($label) . '</td><td>' . ($stat === 'crime_money' ? money_formatter($totals[$stat]) : number_format($totals[$stat])) . '</td><td>' . ($rank === null ? '-' : '#' . number_format($rank)) . '</td></tr>';
+    echo '<tr><td>' . e($label) . '</td><td>' . (in_array($stat, ['crime_money', 'trade_profit'], true) ? money_formatter($totals[$stat]) : number_format($totals[$stat])) . '</td><td>' . ($rank === null ? '-' : '#' . number_format($rank)) . '</td></tr>';
 }
 echo "</table><br />
 <table width='80%' cellspacing='1' class='table'><tr><th>Fights started and won</th><th>Fights started and lost</th><th>Attacks fought off</th><th>Times beaten</th><th>Taken in muggings</th></tr>

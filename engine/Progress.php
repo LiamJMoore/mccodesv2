@@ -23,6 +23,7 @@ const MCC_PROGRESS = [
     'missions' => 'Missions completed',
     'bounties' => 'Bounties collected',
     'crafted' => 'Items crafted',
+    'trade_profit' => 'Profit from trading',
 ];
 
 /** Things to call whenever a counter moves: fn(int $userid, string $stat, int $added, int $total). */

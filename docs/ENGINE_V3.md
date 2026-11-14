@@ -109,6 +109,9 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Live sidebar | the sidebar | `js/live.js`, `api.php?do=live` | Money, crystals, level and bars refresh every 20 seconds with no reload |
 | Lottery | `lottery.php` | `Lottery.php` | A daily draw for game money; 80% of ticket money is the pot; a cap on tickets |
 | Pets and races | `pet.php` | `Pets.php` | Adopt, feed and train one animal, and race it against five rivals of its level |
+| Travel trading | `trade.php` | `Trade.php` | Each city makes three goods worth 35% more elsewhere; limited shelves, a carry limit and a daily customs allowance |
+| Investments | `invest.php` | `Invest.php` | Lock money away for 7, 14 or 30 days for interest; out early pays no interest; one at a time, capped by level |
+| Profiles | `viewuser.php` | `Profile.php` | Rank title, days in the game, medals, a hospital or jail banner, and comments |
 | Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:

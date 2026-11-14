@@ -233,6 +233,37 @@ const MCC_SCHEMA_STEPS = [
               `wins` INT NOT NULL DEFAULT 0,
               KEY `champions` (`wins`)
           ) ENGINE=InnoDB"],
+    // 15: travel trading, fixed-term investments, profile comments
+    15 => ["CREATE TABLE IF NOT EXISTS `v3_trade_stock` (
+              `city` INT NOT NULL,
+              `good` VARCHAR(20) NOT NULL,
+              `stock` INT NOT NULL,
+              `at` INT NOT NULL,
+              PRIMARY KEY (`city`, `good`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_trade_cargo` (
+              `userid` INT NOT NULL,
+              `good` VARCHAR(20) NOT NULL,
+              `qty` INT NOT NULL DEFAULT 0,
+              `paid` BIGINT NOT NULL DEFAULT 0,
+              PRIMARY KEY (`userid`, `good`)
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_investments` (
+              `userid` INT NOT NULL PRIMARY KEY,
+              `amount` BIGINT NOT NULL,
+              `rate` INT NOT NULL,
+              `started` INT NOT NULL,
+              `matures` INT NOT NULL
+          ) ENGINE=InnoDB",
+          "CREATE TABLE IF NOT EXISTS `v3_profile_comments` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `profile` INT NOT NULL,
+              `author` INT NOT NULL,
+              `at` INT NOT NULL,
+              `text` VARCHAR(255) NOT NULL,
+              KEY `on_profile` (`profile`, `id`),
+              KEY `by_author` (`author`, `at`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

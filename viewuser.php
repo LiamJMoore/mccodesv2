@@ -83,7 +83,7 @@ else
         $ref = $db->fetch_single($ref_q);
         $db->free_result($ref_q);
         echo "
-		<h3>Profile for {$r['username']}</h3>
+		<h3>Profile for {$r['username']}</h3>" . profile_card($r) . "
     	<table width='100%' cellspacing='1' class='table'>
     	<tr>
     		<th>General Info</th>
@@ -290,6 +290,7 @@ else
 			</tr>
 		</table>
    		';
+        echo profile_comments_block((int) $r['userid'], (int) $userid, check_access('manage_users'));
     }
 }
 

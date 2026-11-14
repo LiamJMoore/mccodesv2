@@ -1167,6 +1167,55 @@ def pets(srv):
     sql("UPDATE users SET money = 100, energy = 12")
 
 
+def trading(srv):
+    print("Travel trading, investments, profiles")
+    for t in ("v3_trade_stock", "v3_trade_cargo", "v3_perk_uses", "v3_investments", "v3_profile_comments", "events"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 1000000, location = 1, level = 1, hospital = 0, jail = 0 WHERE userid = 2")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/trade.php")
+    good = re.search(r"name='do' value='buy' /><input type='hidden' name='good' value='(\w+)'", body).group(1)
+    check(body.count("name='do' value='buy'") == 3 and "What the other cities make" in body, "the trading post lists the three goods made here")
+    out = many(srv, "player1", "playerpass1", 8, "/trade.php", {"do": "buy", "good": good, "qty": "6"}, token_path="/trade.php")
+    carried = one("SELECT COALESCE(SUM(qty), 0) FROM v3_trade_cargo WHERE userid = 2")
+    check(sum("<b>Bought 6.</b>" in x for x in out) == 1 and carried == "6", "eight logins buying 6 at once with room for 11: one lot fits, so one lot is bought", carried)
+    sql("UPDATE v3_trade_stock SET stock = 5")
+    sql("UPDATE users SET level = 50 WHERE userid = 2")
+    sql("DELETE FROM v3_trade_cargo")
+    sql("DELETE FROM v3_perk_uses")
+    out = many(srv, "player1", "playerpass1", 8, "/trade.php", {"do": "buy", "good": good, "qty": "5"}, token_path="/trade.php")
+    check(sum("<b>Bought 5.</b>" in x for x in out) == 1 and one(f"SELECT stock FROM v3_trade_stock WHERE good = '{good}'") == "0", "eight logins buying the last 5 on the shelf at once: sold once")
+    sql("UPDATE users SET location = 2, money = 0 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/trade.php", {"do": "sell", "good": good, "qty": "5"}, token_path="/trade.php")
+    paid = int(one(f"SELECT paid FROM v3_trade_cargo WHERE userid = 2 AND good = '{good}'") or 0)
+    check(sum("<b>Sold 5</b>" in x for x in out) == 1 and balances(2)["money"] > 0 and one("SELECT COALESCE(SUM(qty), 0) FROM v3_trade_cargo WHERE userid = 2") == "0", "eight logins selling the same 5 at once in another city: sold once", balances(2)["money"])
+    # investments
+    sql("UPDATE users SET money = 50000, level = 1, location = 1 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 8, "/invest.php", {"do": "open", "amount": "50000", "days": "7"}, token_path="/invest.php")
+    check(sum("<b>Invested.</b>" in x for x in out) == 1 and balances(2)["money"] == 0 and one("SELECT COUNT(*) FROM v3_investments") == "1", "eight logins investing the same 50,000 at once: invested once")
+    sql("UPDATE v3_investments SET matures = UNIX_TIMESTAMP() - 5")
+    out = many(srv, "player1", "playerpass1", 8, "/invest.php", {"do": "close"}, token_path="/invest.php")
+    check(sum("Paid out" in x for x in out) == 1 and balances(2)["money"] == 51500, "eight logins collecting a matured investment at once: paid once, with its interest", balances(2)["money"])
+    # profiles
+    other = Session(srv.base)
+    other.login("player2", "playerpass2")
+    _, _, body = other.get("/viewuser.php?u=2")
+    check("Days in the game" in body and "Nobody" in body and "No comments yet" in body, "a profile shows the rank, the age and an empty comments list")
+    (_, _, body), _ = other.form("/viewuser.php?u=2", {"profile_do": "add", "text": "<img src=x onerror=alert(1)> good game"}, token_from="/viewuser.php?u=2")
+    check("&lt;img src=x onerror=alert(1)&gt; good game" in body and "<img src=x onerror" not in body, "a comment is shown as plain text")
+    cid = one("SELECT id FROM v3_profile_comments")
+    third = Session(srv.base)
+    third.login("player3", "playerpass3")
+    third.form("/viewuser.php?u=2", {"profile_do": "delete", "id": cid}, token_from="/viewuser.php?u=2")
+    check(one("SELECT COUNT(*) FROM v3_profile_comments") == "1", "another player cannot delete it")
+    s.form("/viewuser.php?u=2", {"profile_do": "delete", "id": cid}, token_from="/viewuser.php?u=2")
+    check(one("SELECT COUNT(*) FROM v3_profile_comments") == "0", "the profile's owner can")
+    for t in ("v3_trade_stock", "v3_trade_cargo", "v3_perk_uses", "v3_investments", "v3_profile_comments", "events", "v3_progress", "v3_achievements", "v3_season", "v3_missions"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET money = 100, crystals = 10, location = 1, level = 1, exp = 0, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1199,6 +1248,7 @@ def main():
         turf(srv)
         lottery(srv)
         pets(srv)
+        trading(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

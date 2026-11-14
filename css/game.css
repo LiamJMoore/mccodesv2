@@ -292,3 +292,12 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
 @media (prefers-reduced-motion:reduce){.live-changed{animation:none}}
 
 button:disabled,input[type=submit]:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+
+/* -- engine v3: profiles -------------------------------------------------- */
+.profile-status{margin:8px 0;padding:12px 16px;border-radius:var(--r);text-align:left;border:1px solid rgba(244,63,94,.55);background:rgba(244,63,94,.12)}
+.profile-status.jail{border-color:rgba(251,191,36,.55);background:rgba(251,191,36,.1)}
+.profile-medals{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 14px}
+.profile-medals span{padding:3px 10px;border-radius:999px;border:1px solid rgba(124,92,255,.5);background:rgba(124,92,255,.12);font-size:12px}
+.profile-medals a{font-size:12px;align-self:center}
+.profile-comment{text-align:left;padding:10px 12px;margin:6px 0;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02);overflow-wrap:anywhere}
+.linkish{background:none!important;border:0!important;box-shadow:none!important;padding:0!important;color:#8D99B5!important;font-size:12px;cursor:pointer;text-decoration:underline}
