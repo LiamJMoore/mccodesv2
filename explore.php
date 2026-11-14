@@ -18,6 +18,7 @@ if ($ir['jail'] > 0 || $ir['hospital'] > 0)
 $city = (string) $db->value('SELECT `cityname` FROM `cities` WHERE `cityid` = ?', [(int) $ir['location']], 'the city');
 $section = fn (string $title, array $cards): string => "<section class='hub-sec'><h4>" . e($title) . "</h4><div class='hub-grid'>" . implode('', array_filter($cards)) . '</div></section>';
 echo "<div class='hub-hero'><div><p class='dash-eyebrow'>You are in</p><h2>" . e($city) . "</h2><p class='dash-sub'>Pick somewhere to go.</p></div>" . ui_icon('compass', 64) . '</div>';
+echo mugger_banner();
 echo $section('Make money', [
     ui_card('criminal.php', 'mask', 'Crimes', 'Spend brave, earn cash and experience.', 'violet'),
     ui_card('trade.php', 'crate', 'Trading Post', 'Buy local goods, sell them in another city.', 'cyan'),

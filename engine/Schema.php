@@ -341,6 +341,11 @@ const MCC_SCHEMA_STEPS = [
               KEY `in_ticket` (`ticket`, `id`),
               KEY `by_author` (`author`, `at`)
           ) ENGINE=InnoDB"],
+    // 19: the fight log is read by time (mugger of the hour); the three player lists are read by their owner
+    19 => ['ALTER TABLE `attacklogs` ADD INDEX `v3_time` (`time`)',
+           'ALTER TABLE `friendslist` ADD INDEX `v3_adder` (`fl_ADDER`)',
+           'ALTER TABLE `blacklist` ADD INDEX `v3_adder` (`bl_ADDER`)',
+           'ALTER TABLE `contactlist` ADD INDEX `v3_adder` (`cl_ADDER`)'],
 ];
 
 function schema_latest(): int

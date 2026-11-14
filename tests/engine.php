@@ -38,6 +38,7 @@ require 'engine/mods/Marriage.php';
 require 'engine/mods/Auction.php';
 require 'engine/mods/Loan.php';
 require 'engine/mods/Tickets.php';
+require 'engine/mods/Contacts.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -921,6 +922,29 @@ foreach (['v3_tickets', 'v3_ticket_posts', 'events', 'v3_loans', 'v3_ledger'] as
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `bankmoney` = 0, `crystals` = 10, `hospital` = 0, `hp` = 100, `new_events` = 0');
+
+// friends, enemies, contacts; mugger of the hour
+foreach (['friendslist', 'blacklist', 'contactlist', 'attacklogs'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `friend_count` = 0, `enemy_count` = 0');
+check(contact_add('friends', 2, 2) !== null && contact_add('friends', 2, 999999) !== null && contact_add('friends', 2, 3, " A <b>good</b>\n sort ") === null && contact_add('friends', 2, 3) !== null
+    && (int)$user(3)['friend_count'] === 1 && contact_rows('friends', 2)[0]['comment'] === 'A good sort', 'a friend is added once, not yourself and not a ghost, and the comment is plain text');
+$en = (int)contact_rows('friends', 2)[0]['entry'];
+check(!contact_note('friends', 3, $en, 'mine now') && contact_note('friends', 2, $en, 'changed') && contact_rows('friends', 2)[0]['comment'] === 'changed' && !contact_remove('friends', 3, $en) && !contact_remove('enemies', 2, $en)
+    && contact_remove('friends', 2, $en) && !contact_remove('friends', 2, $en) && (int)$user(3)['friend_count'] === 0, 'only the owner can change or remove an entry, and the count comes down once');
+check(contact_add('enemies', 2, 3) === null && (int)$user(3)['enemy_count'] === 1 && (int)$user(3)['friend_count'] === 0 && contact_add('contacts', 2, 3) === null && contact_add('contacts', 2, 3) !== null
+    && count(contact_rows('contacts', 2)) === 1, 'the three lists are separate');
+$nowt = time();
+check(mugger_of_the_hour() === null, 'with no muggings there is no mugger of the hour');
+$db->exec("INSERT INTO `attacklogs` (`attacker`, `attacked`, `result`, `time`, `stole`, `attacklog`) VALUES (2, 3, 'won', ?, 500, ''), (2, 4, 'won', ?, 700, ''), (3, 2, 'won', ?, 1100, ''), (4, 2, 'won', ?, 99999, ''), (4, 2, 'won', ?, -1, '')",
+    [$nowt - 60, $nowt - 120, $nowt - 30, $nowt - 7200, $nowt - 10]);
+$mug = $db->row("SELECT `a`.`attacker` AS `userid`, SUM(`a`.`stole`) AS `total`, COUNT(*) AS `n` FROM `attacklogs` AS `a` WHERE `a`.`time` > ? AND `a`.`result` = 'won' AND `a`.`stole` > 0 GROUP BY `a`.`attacker` ORDER BY `total` DESC LIMIT 1", [$nowt - 3600]);
+check((int)$mug['userid'] === 2 && (int)$mug['total'] === 1200 && (int)$mug['n'] === 2, 'the mugger of the hour is whoever took the most in the last hour; older fights and beatings do not count');
+foreach (['friendslist', 'blacklist', 'contactlist', 'attacklogs'] as $t) {
+    $db->exec("DELETE FROM `{$t}`");
+}
+$db->exec('UPDATE `users` SET `friend_count` = 0, `enemy_count` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

@@ -1374,6 +1374,44 @@ def lending(srv):
     sql("UPDATE users SET money = 100, bankmoney = 0, crystals = 10, hospital = 0, hp = 100, new_events = 0")
 
 
+
+def lists(srv):
+    print("Friends, enemies, contacts")
+    for t in ("friendslist", "blacklist", "contactlist", "attacklogs"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET friend_count = 0, enemy_count = 0, donatordays = 0")
+    a = Session(srv.base)
+    a.login("player1", "playerpass1")
+    _, _, body = a.get("/friendslist.php")
+    check("donators only" in body, "the friends list is still a donator feature")
+    sql("UPDATE users SET donatordays = 10 WHERE userid = 2")
+    out = many(srv, "player1", "playerpass1", 6, "/friendslist.php", {"do": "add", "who": "3", "comment": "<i>pal</i>"}, token_path="/friendslist.php")
+    check(sum("<b>Added.</b>" in x for x in out) == 1 and one("SELECT COUNT(*) FROM friendslist") == "1" and one("SELECT friend_count FROM users WHERE userid = 3") == "1", "six logins adding the same friend at once: listed once, counted once")
+    _, _, body = a.get("/friendslist.php?action=add&ID=4")
+    check("value='4'" in body and "<i>pal" not in body and "pal" in body, "the profile's Add Friends link still fills in the form; comments are plain text")
+    entry = one("SELECT fl_ID FROM friendslist")
+    # the old page removed an entry from a plain link, which any web page could trigger; now it must be a form with a token
+    a.get(f"/friendslist.php?action=remove&f={entry}")
+    check(one("SELECT COUNT(*) FROM friendslist") == "1", "a link cannot remove a friend")
+    b = Session(srv.base)
+    b.login("player2", "playerpass2")
+    sql("UPDATE users SET donatordays = 10 WHERE userid = 3")
+    b.form("/friendslist.php", {"do": "remove", "entry": entry})
+    check(one("SELECT COUNT(*) FROM friendslist") == "1", "another player cannot remove it")
+    out = many(srv, "player1", "playerpass1", 6, "/friendslist.php", {"do": "remove", "entry": entry}, token_path="/friendslist.php")
+    check(one("SELECT COUNT(*) FROM friendslist") == "0" and one("SELECT friend_count FROM users WHERE userid = 3") == "0", "six logins removing at once: the count comes down once", one("SELECT friend_count FROM users WHERE userid = 3"))
+    a.form("/blacklist.php", {"do": "add", "who": "3"})
+    a.form("/contactlist.php", {"do": "add", "who": "4"})
+    _, _, body = a.get("/mailbox.php?action=compose")
+    check(one("SELECT enemy_count FROM users WHERE userid = 3") == "1" and one("SELECT COUNT(*) FROM contactlist") == "1" and "player3" in body, "the black list counts, and a mail contact appears when writing a message")
+    sql("INSERT INTO attacklogs (attacker, attacked, result, time, stole, attacklog) VALUES (3, 2, 'won', UNIX_TIMESTAMP() - 60, 4321, '')")
+    _, _, body = a.get("/explore.php")
+    check("Mugger of the hour" in body and "$4,321" in body and "player2" in body, "the city shows the mugger of the hour")
+    for t in ("friendslist", "blacklist", "contactlist", "attacklogs"):
+        sql(f"DELETE FROM {t}")
+    sql("UPDATE users SET friend_count = 0, enemy_count = 0, donatordays = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1411,6 +1449,7 @@ def main():
         ledger(srv)
         couples(srv)
         lending(srv)
+        lists(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0
