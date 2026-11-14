@@ -146,6 +146,21 @@ A refund is recorded and shown on the staff dashboard; crystals are not taken ba
 The old PayPal page (`donator.php`) is still there and unchanged. Once the store is open the banner points to the
 store instead.
 
+## The look
+
+`css/game.css` ends with the "Engine v3 skin": a slow-moving aurora behind glass panels, buttons whose colour flows
+on hover, cards that lift, and bars that shine. `engine/Ui.php` holds the icon set (drawn in code, so there are no
+icon fonts or image files) and the helpers the menu and the Explore hub are built from:
+
+- `mainmenu.php` builds the menu in groups with `ui_group()` and `ui_link()`; a link shows a count beside it when
+  something is waiting and lights up for the page you are on.
+- `explore.php` is a hub of cards (`ui_card()`), one for every place in the game.
+- On a phone the player card shrinks to a slim header, the menu opens as a sheet, and five links sit in a bar along
+  the bottom.
+
+All motion stops for anyone whose device asks for reduced motion. To add a page to the menu or the hub, add one
+`ui_link()` or `ui_card()` line.
+
 ## Still on v2 code
 
 These run on the v3 start-up path but their own code is unchanged: jobs and education,

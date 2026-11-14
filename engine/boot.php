@@ -20,6 +20,7 @@ if (!isset($MCC_BOOT) || !in_array($MCC_BOOT, ['public', 'player', 'staff'], tru
 }
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/Ui.php';
 require_once __DIR__ . '/Economy.php';
 require_once __DIR__ . '/Items.php';
 require_once __DIR__ . '/Formula.php';

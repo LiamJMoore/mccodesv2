@@ -170,7 +170,12 @@ OUT;
         include 'mainmenu.php';
         global $ir, $set;
         $bgcolor = 'FFFFFF';
-        print '</nav></aside><main class="main"><div class="notices">';
+        // engine v3: on a phone the five places players go most sit in a bar along the bottom
+        $tab = fn (string $href, string $icon, string $label): string =>
+            "<a href='{$href}'" . (ui_here() === $href ? " class='on' aria-current='page'" : '') . '>' . ui_icon($icon, 22) . "<span>{$label}</span></a>";
+        print '</nav></aside><nav class="tabbar" aria-label="Quick links">' . $tab('index.php', 'home', 'Home') . $tab('explore.php', 'compass', 'Explore')
+            . $tab('criminal.php', 'mask', 'Crimes') . $tab('gym.php', 'dumbbell', 'Gym') . '<label for="navt">' . ui_icon('menu', 22) . '<span>Menu</span></label></nav>';
+        print '<main class="main"><div class="notices">';
         if ($ir['hospital']) {
             echo "<div class='notice n-hosp'><b>In hospital</b> for {$ir['hospital']} minutes.</div>";
         }

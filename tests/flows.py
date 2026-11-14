@@ -292,7 +292,7 @@ def daily(srv):
     s = Session(srv.base)
     s.login("player1", "playerpass1")
     _, _, body = s.get("/daily.php")
-    check("Daily Reward (claim)" in body and "Today is <b>day 1</b>" in body, "the menu and the page show the reward is waiting")
+    check("<span>Daily Reward</span><em class='nav-badge'>claim</em>" in body and "Today is <b>day 1</b>" in body, "the menu and the page show the reward is waiting")
     s.get("/daily.php", {"verf": "wrong"})
     check(balances(2)["money"] == 0, "a claim without the form's token pays nothing")
 
@@ -305,7 +305,7 @@ def daily(srv):
     out = at_once(srv.base, "player1", "playerpass1", 10, claim)
     check(sum(out) == 1 and balances(2)["money"] == 500, "ten logins claiming at once: paid once", (sum(out), balances(2)["money"]))
     _, _, body = s.get("/daily.php")
-    check("Claimed for today" in body and "Daily Reward (claim)" not in body, "the page and the menu then show it as claimed")
+    check("Claimed for today" in body and "nav-badge'>claim" not in body, "the page and the menu then show it as claimed")
     sql("UPDATE v3_daily SET last_claim = CURDATE() - INTERVAL 1 DAY WHERE userid = 2")
     (_, _, body), _ = s.form("/daily.php", {})
     check("Day 2 claimed" in body and balances(2)["money"] == 1250, "the next day continues the streak", balances(2)["money"])
@@ -972,7 +972,7 @@ def season(srv):
     s = Session(srv.base)
     s.login("player1", "playerpass1")
     _, _, body = s.get("/season.php")
-    check("Season Pass (3)" in body and "Collect 3 rewards" in body and "Unlock premium for 150 crystals" in body, "the page and the menu show three rewards waiting and the premium offer")
+    check("<span>Season Pass</span><em class='nav-badge'>3</em>" in body and "Collect 3 rewards" in body and "Unlock premium for 150 crystals" in body, "the page and the menu show three rewards waiting and the premium offer")
 
     def grab(sess, prepare=False, prepared=None, do="claim"):
         if prepare:
