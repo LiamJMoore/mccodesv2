@@ -977,6 +977,57 @@ def season(srv):
     sql("UPDATE users SET money = 100, crystals = 10")
 
 
+def store(srv):
+    print("Store (Stripe: Apple Pay, Google Pay, cards)")
+    import hashlib, hmac, json, time
+    sql("DELETE FROM v3_payments")
+    sql("DELETE FROM events")
+    sql("UPDATE users SET crystals = 0, donatordays = 0, new_events = 0")
+    s = Session(srv.base)
+    s.login("player1", "playerpass1")
+    _, _, body = s.get("/store.php")
+    check(body.count("class='store-pack'") == 4 and "Apple Pay" in body and "&pound;2.99" in body, "the store lists four packs with their prices")
+    s.get("/store.php?paid=1")
+    check(balances(2)["crystals"] == 0, "opening the thank-you address credits nothing")
+
+    def hook(payload, secret="whsec_devonly", t=None, sign=True):
+        raw = json.dumps(payload).encode()
+        t = t or int(time.time())
+        sig = hmac.new(secret.encode(), f"{t}.".encode() + raw, hashlib.sha256).hexdigest()
+        req = urllib.request.Request(srv.base + "/stripe_webhook.php", data=raw, headers={"Stripe-Signature": f"t={t},v1={sig}"} if sign else {})
+        try:
+            r = urllib.request.urlopen(req, timeout=30)
+            return r.status, r.read().decode()
+        except urllib.error.HTTPError as e:
+            return e.code, e.read().decode()
+
+    event = {"type": "checkout.session.completed", "data": {"object": {"id": "cs_test_1", "payment_status": "paid", "payment_intent": "pi_1", "amount_total": 299, "currency": "gbp",
+                                                                      "metadata": {"userid": "2", "pack": "starter"}}}}
+    check(hook(event, sign=False)[0] == 400 and hook(event, secret="whsec_wrong")[0] == 400 and hook(event, t=int(time.time()) - 4000)[0] == 400 and balances(2)["crystals"] == 0,
+          "a payment message that is unsigned, signed with the wrong secret, or old is refused and credits nothing")
+    cheap = json.loads(json.dumps(event))
+    cheap["data"]["object"].update({"id": "cs_test_cheap", "metadata": {"userid": "2", "pack": "huge"}})
+    check(hook(cheap) == (200, "mismatch") and balances(2)["crystals"] == 0, "paying the small price for the big pack credits nothing")
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(hook(event))) for _ in range(8)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    answers = sorted(r[1] for r in results)
+    check(answers.count("credited") == 1 and answers.count("already") == 7 and balances(2)["crystals"] == 100 and one("SELECT donatordays FROM users WHERE userid = 2") == "30",
+          "the same payment delivered eight times at once is credited once", answers)
+    _, _, body = s.get("/store.php")
+    check("Your purchases" in body and "Starter pack" in body and "Delivered" in body, "the purchase shows in the player's history")
+    (code, _, body), _ = s.form("/store.php", {"pack": "starter"})
+    check(code == 200 and "could not be opened" in body and "Nothing has been charged" in body, "with keys Stripe does not accept, the player is told nothing was charged")
+    staff = Session(srv.base)
+    staff.login("admin", "adminpass1")
+    _, _, body = staff.get("/staff_dashboard.php")
+    check("Store, 30 days" in body and "2.99" in body, "the staff dashboard shows the takings")
+    sql("DELETE FROM v3_payments")
+    sql("DELETE FROM events")
+    sql("UPDATE users SET crystals = 10, donatordays = 0, new_events = 0")
+
+
 def main():
     with Server(8770) as srv:
         sql("UPDATE users SET level = 1, exp = 0, maxbrave = 5, brave = 5, maxenergy = 12, energy = 12, will = 100, maxwill = 100, jail = 0, hospital = 0, hp = 100, maxhp = 100, attacking = 0")
@@ -1003,6 +1054,7 @@ def main():
         forums(srv)
         equipping(srv)
         season(srv)
+        store(srv)
     sql("UPDATE cron_times SET last_run = NOW()")
     print("\nAll flows passed." if not failed else f"\n{failed} flow check(s) FAILED")
     return 1 if failed else 0

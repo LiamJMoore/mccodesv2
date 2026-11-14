@@ -17,8 +17,13 @@ echo '<h3>Dashboard</h3><div class="dash-tiles">'
     . $tile('Money in the game', '$' . dash_short($t['all_money']), 'pockets, banks, vaults, bounties')
     . $tile('Crystals', dash_short($t['crystals']), 'in pockets')
     . $tile('In hospital / jail', $t['hospital'] . ' / ' . $t['jail'], $t['fedjailed'] . ' in federal jail')
-    . $tile('Gangs', number_format($t['gangs']), '$' . dash_short($t['vaults']) . ' in vaults')
-    . '</div>';
+    . $tile('Gangs', number_format($t['gangs']), '$' . dash_short($t['vaults']) . ' in vaults');
+if ($admin) {
+    $tk = store_takings();
+    echo $tile('Store, today', html_entity_decode(store_price($tk['today']), ENT_QUOTES, 'ISO-8859-1'), store_ready() ? 'payments are switched on' : 'payments are not set up', store_ready() ? '' : 'warn')
+        . $tile('Store, 30 days', html_entity_decode(store_price($tk['month']), ENT_QUOTES, 'ISO-8859-1'), $tk['count_month'] . ' purchases, ' . $tk['refunded_month'] . ' refunded');
+}
+echo '</div>';
 // integrity: figures that can only be wrong if something has gone wrong
 $problems = $t['broken'] + $t['negative_inventory'] + $t['negative_vaults'];
 echo "<div class='dash-check " . ($problems === 0 ? 'ok' : 'bad') . "'>" . ($problems === 0

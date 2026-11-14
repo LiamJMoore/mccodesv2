@@ -103,6 +103,7 @@ Each lives in `engine/mods/`, has its own page, and is linked from the menu.
 | Staff dashboard | `staff_dashboard.php` | `Dashboard.php` | Totals, a books-balance check, 30-day trends, a watchlist, system health |
 | Season Pass | `season.php` | `Season.php` | A season a month; 30 tiers; a free track and a premium one bought with crystals; nothing random |
 | Installable app | `manifest.webmanifest`, `sw.js` | | The game installs to a phone's home screen and shows a friendly page when offline. Game pages are never stored |
+| Store | `store.php`, `stripe_webhook.php` | `Store.php` | Crystal packs paid through Stripe Checkout (Apple Pay, Google Pay, cards). A signed message from Stripe credits the player, once |
 
 Two small systems sit under these:
 
@@ -112,6 +113,29 @@ Two small systems sit under these:
   bounties are collected.
 
 Rewards, targets, fees and limits are constants at the top of each mod file. Change the number, save the file.
+
+## Taking payments (Stripe: Apple Pay, Google Pay, cards)
+
+The store is closed until two keys are in `config.php` (which is not in the repository):
+
+```php
+$_CONFIG['stripe_secret'] = 'sk_live_...';          // Stripe dashboard > Developers > API keys
+$_CONFIG['stripe_webhook_secret'] = 'whsec_...';    // Stripe dashboard > Developers > Webhooks > your endpoint
+```
+
+1. Open a Stripe account and finish its identity checks.
+2. In Settings > Payment methods, switch on Apple Pay and Google Pay. Checkout is hosted by Stripe, so there is no
+   Apple domain file to upload.
+3. Add a webhook endpoint at `https://YOUR-GAME/stripe_webhook.php` for `checkout.session.completed`,
+   `checkout.session.async_payment_succeeded` and `charge.refunded`. Copy its signing secret into `config.php`.
+4. Try it with Stripe's test keys (`sk_test_...`) and a test card before using live keys.
+
+Packs and prices are the `MCC_STORE_PACKS` constant in `engine/mods/Store.php`. The player is credited only by the
+signed message from Stripe, never by the page they come back to, and the amount paid is checked against the pack.
+A refund is recorded and shown on the staff dashboard; crystals are not taken back automatically.
+
+The old PayPal page (`donator.php`) is still there and unchanged. Once the store is open the banner points to the
+store instead.
 
 ## Still on v2 code
 

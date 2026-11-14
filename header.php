@@ -177,7 +177,9 @@ OUT;
         if ($ir['jail']) {
             echo "<div class='notice n-jail'><b>In jail</b> for {$ir['jail']} minutes.</div>";
         }
-        echo "<a class='notice n-donate' href='donator.php'><b>Support {$set['game_name']}</b> and unlock donator perks &rarr;</a>";
+        echo function_exists('store_ready') && store_ready()
+            ? "<a class='notice n-donate' href='store.php'><b>Store</b>: crystal packs with Apple Pay, Google Pay or card &rarr;</a>"
+            : "<a class='notice n-donate' href='donator.php'><b>Support {$set['game_name']}</b> and unlock donator perks &rarr;</a>";
         echo '</div><div class="page"><center>';
     }
 

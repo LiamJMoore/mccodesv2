@@ -121,6 +121,25 @@ const MCC_SCHEMA_STEPS = [
               `track` ENUM('free', 'premium') NOT NULL,
               PRIMARY KEY (`userid`, `season`, `tier`, `track`)
           ) ENGINE=InnoDB"],
+    // 9: payments taken by the store
+    9 => ["CREATE TABLE IF NOT EXISTS `v3_payments` (
+              `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `provider` VARCHAR(16) NOT NULL,
+              `ref` VARCHAR(191) NOT NULL,
+              `intent` VARCHAR(191) NOT NULL DEFAULT '',
+              `userid` INT NOT NULL,
+              `pack` VARCHAR(32) NOT NULL,
+              `amount` INT NOT NULL,
+              `currency` CHAR(3) NOT NULL,
+              `crystals` INT NOT NULL DEFAULT 0,
+              `donator_days` INT NOT NULL DEFAULT 0,
+              `created` INT NOT NULL,
+              `status` ENUM('paid', 'refunded') NOT NULL DEFAULT 'paid',
+              UNIQUE KEY `once` (`provider`, `ref`),
+              KEY `by_player` (`userid`),
+              KEY `by_intent` (`intent`),
+              KEY `by_time` (`created`)
+          ) ENGINE=InnoDB"],
 ];
 
 function schema_latest(): int

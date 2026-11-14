@@ -24,6 +24,7 @@ require 'engine/mods/Missions.php';
 require 'engine/mods/Bounties.php';
 require 'engine/mods/Crafting.php';
 require 'engine/mods/Season.php';
+require 'engine/mods/Store.php';
 require 'engine/mods/Notify.php';
 require 'engine/mods/Api.php';
 require 'engine/mods/Dashboard.php';
@@ -475,6 +476,48 @@ foreach (['v3_season', 'v3_season_claims', 'v3_progress', 'v3_achievements', 'v3
     $db->exec("DELETE FROM `{$t}`");
 }
 $db->exec('UPDATE `users` SET `money` = 100, `crystals` = 10, `new_events` = 0');
+
+// the store
+$db->exec('DELETE FROM `v3_payments`');
+$db->exec('DELETE FROM `events`');
+$db->exec('UPDATE `users` SET `crystals` = 0, `donatordays` = 0, `new_events` = 0');
+$body = '{"id":"evt_1","type":"x"}';
+$sig = fn (string $b, string $secret, int $t): string => "t={$t},v1=" . hash_hmac('sha256', $t . '.' . $b, $secret);
+check(store_signature_ok($body, $sig($body, 'whsec_a', 1000), 'whsec_a', 1000) && !store_signature_ok($body, $sig($body, 'whsec_b', 1000), 'whsec_a', 1000)
+    && !store_signature_ok($body . ' ', $sig($body, 'whsec_a', 1000), 'whsec_a', 1000) && !store_signature_ok($body, $sig($body, 'whsec_a', 1000), 'whsec_a', 1000 + MCC_STORE_SIGNATURE_AGE + 1)
+    && !store_signature_ok($body, '', 'whsec_a', 1000) && !store_signature_ok($body, $sig($body, '', 1000), '', 1000) && !store_signature_ok($body, 'v1=abc', 'whsec_a', 1000)
+    && store_signature_ok($body, 't=1000,v1=bad,v1=' . hash_hmac('sha256', '1000.' . $body, 'whsec_a'), 'whsec_a', 1000),
+    'a webhook is accepted only with the right signature, over the exact body, and while fresh');
+$paid = fn (string $id, array $over = []): array => ['type' => 'checkout.session.completed', 'data' => ['object' => array_merge(
+    ['id' => $id, 'payment_status' => 'paid', 'payment_intent' => 'pi_' . $id, 'amount_total' => 799, 'currency' => 'gbp', 'metadata' => ['userid' => '2', 'pack' => 'regular']], $over)]];
+check(store_handle_event($paid('cs_1')) === 'credited' && $bal(2)['crystals'] === 300 && (int)$user(2)['donatordays'] === 30 && store_handle_event($paid('cs_1')) === 'already' && $bal(2)['crystals'] === 300
+    && (int)$db->value("SELECT COUNT(*) FROM `events` WHERE `evUSER` = 2 AND `evTEXT` LIKE '%Regular pack%'") === 1, 'a paid checkout credits the pack once, however often Stripe reports it');
+check(store_handle_event($paid('cs_2', ['amount_total' => 1])) === 'mismatch' && store_handle_event($paid('cs_3', ['currency' => 'usd'])) === 'mismatch'
+    && store_handle_event($paid('cs_4', ['metadata' => ['userid' => '2', 'pack' => 'nope']])) === 'unknown' && store_handle_event($paid('cs_5', ['metadata' => ['userid' => '99999', 'pack' => 'regular']])) === 'unknown'
+    && store_handle_event($paid('cs_6', ['payment_status' => 'unpaid'])) === 'unpaid' && store_handle_event(['type' => 'customer.created']) === 'ignored' && $bal(2)['crystals'] === 300
+    && (int)$db->value('SELECT COUNT(*) FROM `v3_payments`') === 1, 'a wrong amount or currency, an unknown pack or player, or an unpaid checkout credits nothing');
+check(store_handle_event(['type' => 'checkout.session.async_payment_succeeded', 'data' => ['object' => $paid('cs_6')['data']['object']]]) === 'credited' && $bal(2)['crystals'] === 600, 'a slow payment is credited when it clears');
+check(store_handle_event(['type' => 'charge.refunded', 'data' => ['object' => ['payment_intent' => 'pi_cs_1']]]) === 'refunded' && $db->value("SELECT `status` FROM `v3_payments` WHERE `ref` = 'cs_1'") === 'refunded'
+    && $bal(2)['crystals'] === 600 && store_takings()['month'] === 799 && store_takings()['refunded_month'] === 1, 'a refund is recorded for staff; crystals are not taken back automatically');
+$_CONFIG['stripe_secret'] = 'sk_test_x';
+$_CONFIG['stripe_webhook_secret'] = 'whsec_x';
+$sent = null;
+$GLOBALS['mcc_store_http'] = function (string $path, array $fields) use (&$sent) {
+    $sent = [$path, $fields];
+    return [200, ['id' => 'cs_new', 'url' => 'https://checkout.stripe.com/c/pay/cs_new']];
+};
+$url = store_checkout(2, 'big', 'https://game.example');
+check($url === 'https://checkout.stripe.com/c/pay/cs_new' && $sent[0] === 'checkout/sessions' && $sent[1]['line_items'][0]['price_data']['unit_amount'] === 1499 && $sent[1]['metadata'] === ['userid' => '2', 'pack' => 'big']
+    && $sent[1]['line_items'][0]['price_data']['currency'] === 'gbp' && $sent[1]['success_url'] === 'https://game.example/store.php?paid=1' && store_checkout(2, 'nope', 'https://game.example') === null,
+    'starting a purchase asks Stripe for a checkout at the pack\'s own price, tagged with the player and the pack');
+$GLOBALS['mcc_store_http'] = fn () => [401, ['error' => ['message' => 'bad key']]];
+check(store_checkout(2, 'big', 'https://game.example') === null, 'if Stripe refuses, no checkout address is returned');
+$GLOBALS['mcc_store_http'] = fn () => [200, ['url' => 'javascript:alert(1)']];
+check(store_checkout(2, 'big', 'https://game.example') === null && html_entity_decode(store_price(1499)) === "\u{a3}14.99", 'only an https address is ever followed, and prices print in pounds and pence');
+unset($GLOBALS['mcc_store_http']);
+$db->exec('DELETE FROM `v3_payments`');
+$db->exec('DELETE FROM `events`');
+$db->exec('UPDATE `users` SET `crystals` = 10, `donatordays` = 0, `new_events` = 0');
 
 echo $failed ? "\n{$failed} check(s) FAILED\n" : "\nAll engine checks passed.\n";
 exit($failed ? 1 : 0);

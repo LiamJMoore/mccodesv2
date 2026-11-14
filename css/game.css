@@ -268,3 +268,15 @@ input[type=checkbox],input[type=radio]{accent-color:var(--acc)}
 .season-bar{height:12px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
 .season-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2))}
 .season-offer{margin:14px 0;padding:14px 16px;border:1px solid rgba(124,92,255,.55);border-radius:var(--r);background:rgba(124,92,255,.1);text-align:left}
+
+/* -- engine v3: store ---------------------------------------------------- */
+.store-packs{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:16px 0;text-align:left}
+.store-pack{margin:0;padding:18px 16px;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.03);display:flex;flex-direction:column;gap:4px}
+.store-pack:hover{border-color:rgba(124,92,255,.6)}
+.store-pack small{color:var(--mute);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.store-pack b{font:700 22px var(--disp)}
+.store-pack span{color:var(--mute);font-size:13px}
+.store-pack em{font-style:normal;color:#34D399;font-size:12px;min-height:18px}
+.store-pack input[type=submit]{margin-top:10px;width:100%}
+.store-note{margin:10px 0;padding:12px 16px;border-radius:var(--r);border:1px solid var(--line);text-align:left}
+.store-note.ok{border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.08)}

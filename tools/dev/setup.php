@@ -47,7 +47,7 @@ foreach (explode("\n", file_get_contents('dbdata.sql')) as $line) {
 $code = bin2hex(random_bytes(16));
 $cfg = "<?php\n\$_CONFIG = array(\n\t'hostname' => " . var_export($o['host'], true) . ",\n\t'username' => " . var_export($o['user'], true)
     . ",\n\t'password' => " . var_export($o['pass'], true) . ",\n\t'database' => " . var_export($o['db'], true)
-    . ",\n\t'persistent' => 0,\n\t'driver' => 'mysqli',\n\t'code' => '{$code}',\n);\n";
+    . ",\n\t'persistent' => 0,\n\t'driver' => 'mysqli',\n\t'code' => '{$code}',\n\t// made-up keys so the store's own code can be tested; they work with no real Stripe account\n\t'stripe_secret' => 'sk_test_devonly',\n\t'stripe_webhook_secret' => 'whsec_devonly',\n);\n";
 file_put_contents('config.php', $cfg);
 require 'global_func.php';
 

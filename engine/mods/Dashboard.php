@@ -73,7 +73,9 @@ function dash_watch(): array
         'richest' => $db->all(
             'SELECT `userid`, `username`, `level`, (`money` + IF(`bankmoney` > 0, `bankmoney`, 0) + IF(`cybermoney` > 0, `cybermoney`, 0)) AS `worth`
              FROM `users` WHERE `user_level` = 1 ORDER BY `worth` DESC LIMIT 10'),
-        'failed_logins' => $db->all('SELECT `ip`, COUNT(*) AS `tries` FROM `login_attempts` WHERE `at` > ? GROUP BY `ip` HAVING COUNT(*) >= 5 ORDER BY `tries` DESC LIMIT 10', [time() - 3600]),
+        // (the login page makes this table the first time anyone logs in)
+        'failed_logins' => (int)$db->value("SELECT COUNT(*) FROM `information_schema`.`TABLES` WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = 'login_attempts'") === 0 ? []
+            : $db->all('SELECT `ip`, COUNT(*) AS `tries` FROM `login_attempts` WHERE `at` > ? GROUP BY `ip` HAVING COUNT(*) >= 5 ORDER BY `tries` DESC LIMIT 10', [time() - 3600]),
     ];
 }
 
