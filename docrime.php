@@ -23,75 +23,63 @@ if ($ir['jail'] > 0 || $ir['hospital'] > 0)
 if ($_GET['c'] <= 0)
 {
     echo 'Invalid crime';
+    $h->endpage();
+    exit;
+}
+$r = $db->row('SELECT * FROM `crimes` WHERE `crimeID` = ?', [$_GET['c']]);
+if ($r === null)
+{
+    echo 'Invalid crime.';
+    $h->endpage();
+    exit;
+}
+// the chance of success is a sum staff typed in. v2 ran it as PHP code; v3 works it out as arithmetic and nothing else
+try
+{
+    $sucrate = formula_value((string) $r['crimePERCFORM'],
+            ['LEVEL' => $ir['level'], 'CRIMEXP' => $ir['crimexp'], 'EXP' => $ir['exp'], 'WILL' => $ir['will'], 'IQ' => $ir['IQ']]);
+}
+catch (FormulaError $e)
+{
+    echo 'This crime has not been set up correctly, so it cannot be attempted. Please tell a member of staff.';
+    if ($ir['user_level'] == 2)
+    {
+        echo '<br />Staff note: ' . e($e->getMessage());
+    }
+    $h->endpage();
+    exit;
+}
+// the brave is taken in one statement that refuses if it is not there, so one bar of brave is one attempt
+if (!bar_spend($userid, 'brave', (int) $r['crimeBRAVE']))
+{
+    echo 'You do not have enough Brave to perform this crime.';
+    $h->endpage();
+    exit;
+}
+print $r['crimeITEXT'];
+if (rand(1, 100) <= $sucrate)
+{
+    print str_replace('{money}', (string) $r['crimeSUCCESSMUNY'], $r['crimeSTEXT']);
+    $db->exec('UPDATE `users` SET `money` = `money` + ?, `crystals` = `crystals` + ?, `exp` = `exp` + ?, `crimexp` = `crimexp` + ? WHERE `userid` = ?',
+            [(int) $r['crimeSUCCESSMUNY'], (int) $r['crimeSUCCESSCRYS'], (int) ($r['crimeSUCCESSMUNY'] / 8), (int) $r['crimeXP'], $userid]);
+    ledger_add($userid, 'money', (int) $r['crimeSUCCESSMUNY'], (string) $r['crimeNAME']);
+    ledger_add($userid, 'crystals', (int) $r['crimeSUCCESSCRYS'], (string) $r['crimeNAME']);
+    progress_add($userid, 'crimes');
+    progress_add($userid, 'crime_money', (int) $r['crimeSUCCESSMUNY']);
+    if ($r['crimeSUCCESSITEM'])
+    {
+        item_add($userid, (int) $r['crimeSUCCESSITEM'], 1);
+    }
+}
+elseif (rand(1, 2) == 1)
+{
+    print $r['crimeFTEXT'];
 }
 else
 {
-    $q =
-            $db->query(
-                    "SELECT *
-    				 FROM `crimes`
-    				 WHERE `crimeID` = {$_GET['c']}
-    				 LIMIT 1");
-    if ($db->num_rows($q) == 0)
-    {
-        echo 'Invalid crime.';
-        $h->endpage();
-        exit;
-    }
-    $r = $db->fetch_row($q);
-    $db->free_result($q);
-    if ($ir['brave'] < $r['crimeBRAVE'])
-    {
-        echo 'You do not have enough Brave to perform this crime.';
-    }
-    else
-    {
-        $ec =
-                '$sucrate='
-                        . str_replace(
-                                ['LEVEL', 'CRIMEXP', 'EXP', 'WILL', 'IQ'],
-                                [$ir['level'], $ir['crimexp'],
-                                        $ir['exp'], $ir['will'], $ir['IQ']],
-                                $r['crimePERCFORM']) . ';';
-        eval($ec);
-        print $r['crimeITEXT'];
-        $ir['brave'] -= $r['crimeBRAVE'];
-        $db->query(
-                "UPDATE `users`
-                 SET `brave` = {$ir['brave']}
-                 WHERE `userid` = $userid");
-        if (rand(1, 100) <= $sucrate)
-        {
-            print
-                    str_replace('{money}', $r['crimeSUCCESSMUNY'],
-                            $r['crimeSTEXT']);
-            $ir['money'] += $r['crimeSUCCESSMUNY'];
-            $ir['crystals'] += $r['crimeSUCCESSCRYS'];
-            $ir['exp'] += (int) ($r['crimeSUCCESSMUNY'] / 8);
-            $db->query(
-                    "UPDATE `users`
-                    SET `money` = {$ir['money']},
-                    `crystals` = {$ir['crystals']}, `exp` = {$ir['exp']},
-                    `crimexp` = `crimexp` + {$r['crimeXP']}
-                    WHERE `userid` = $userid");
-            if ($r['crimeSUCCESSITEM'])
-            {
-                item_add($userid, (int) $r['crimeSUCCESSITEM'], 1);
-            }
-        } elseif (rand(1, 2) == 1) {
-            print $r['crimeFTEXT'];
-        } else {
-            print $r['crimeJTEXT'];
-            $db->query(
-                "UPDATE `users`
-                        SET `jail` = '{$r['crimeJAILTIME']}',
-                        `jail_reason` = '{$r['crimeJREASON']}'
-                        WHERE `userid` = $userid");
-        }
-
-        echo "<br /><a href='docrime.php?c={$_GET['c']}'>Try Again</a><br />
-<a href='criminal.php'>Crimes</a>";
-    }
+    print $r['crimeJTEXT'];
+    $db->exec('UPDATE `users` SET `jail` = ?, `jail_reason` = ? WHERE `userid` = ?', [(int) $r['crimeJAILTIME'], $r['crimeJREASON'], $userid]);
 }
-
+echo "<br /><a href='docrime.php?c={$_GET['c']}'>Try Again</a><br />
+<a href='criminal.php'>Crimes</a>";
 $h->endpage();

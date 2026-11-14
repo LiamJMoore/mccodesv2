@@ -43,6 +43,14 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet']))
 		<a href='slotsmachine.php?tresde=$tresder'>&gt; Back</a>");
     }
 
+    // engine v3: the stake leaves the pocket before the reels turn, in one statement that refuses if it is not
+    // there. v2 checked the balance, played, then adjusted it, so many plays sent together all played on one stake.
+    if (!wallet_take($userid, 'money', $_POST['bet']))
+    {
+        die(
+                "You are trying to bet more than you have.<br />
+		<a href='slotsmachine.php?tresde=$tresder'>&gt; Back</a>");
+    }
     $slot[1] = rand(0, 9);
     $slot[2] = rand(0, 9);
     $slot[3] = rand(0, 9);
@@ -73,10 +81,10 @@ if (isset($_POST['bet']) && is_numeric($_POST['bet']))
         $gain = -$_POST['bet'];
         echo 'and lost it.';
     }
-    $db->query(
-            "UPDATE `users`
-    		 SET `money` = `money` + ({$gain})
-    		 WHERE `userid` = $userid");
+    if ($won > 0)
+    {
+        wallet_give($userid, 'money', $won);
+    }
     $tresder = rand(100, 999);
     echo "<br />
     <form action='slotsmachine.php?tresde={$tresder}' method='post'>

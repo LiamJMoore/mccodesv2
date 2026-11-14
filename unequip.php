@@ -24,11 +24,22 @@ if ($ir[$_GET['type']] == 0)
     $h->endpage();
     exit;
 }
-item_add($userid, (int) $ir[$_GET['type']], 1);
-$db->query(
-        "UPDATE `users`
-        SET `{$_GET['type']}` = 0
-        WHERE `userid` = {$ir['userid']}");
+// engine v3: the slot is emptied only if it still holds the item, and the item is handed back only if it was. v2
+// handed one back for every request that arrived before the first finished: one weapon became many.
+$unequipped = $db->attempt(function () use ($db, $userid, $ir) {
+    if ($db->exec("UPDATE `users` SET `{$_GET['type']}` = 0 WHERE `userid` = ? AND `{$_GET['type']}` = ?", [$userid, (int) $ir[$_GET['type']]]) !== 1)
+    {
+        return false;
+    }
+    item_add($userid, (int) $ir[$_GET['type']], 1);
+    return true;
+});
+if (!$unequipped)
+{
+    echo 'You do not have anything equipped in this slot.';
+    $h->endpage();
+    exit;
+}
 $names =
         ['equip_primary' => 'Primary Weapon',
                 'equip_secondary' => 'Secondary Weapon',

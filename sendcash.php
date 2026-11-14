@@ -54,20 +54,13 @@ else
             $h->endpage();
             exit;
         }
-        elseif ($_POST['money'] > $ir['money'])
+        elseif (!wallet_send($userid, (int)$_GET['ID'], 'money', (int)$_POST['money']))   // engine v3: taken and given together, or not at all
         {
             echo 'Not enough money to send.';
         }
         else
         {
-            $db->query(
-                    "UPDATE `users`
-                     SET `money` = `money` - {$_POST['money']}
-                     WHERE `userid` = $userid");
-            $db->query(
-                    "UPDATE `users`
-                     SET `money` = `money` + {$_POST['money']}
-                     WHERE `userid` = {$_GET['ID']}");
+
             echo 'You sent ' . money_formatter($_POST['money'])
                     . " to {$er['username']} (ID {$_GET['ID']}).";
             event_add($_GET['ID'],

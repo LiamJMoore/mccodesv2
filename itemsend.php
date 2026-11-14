@@ -64,8 +64,23 @@ if (!empty($_POST['qty']) && !empty($_POST['user']))
         else
         {
             $rm = $db->fetch_row($m);
-            item_remove($userid, (int) $r['inv_itemid'], $_POST['qty']);
-            item_add($_POST['user'], (int) $r['inv_itemid'], $_POST['qty']);
+            // engine v3: the items leave the sender in one statement that refuses if they are not there, and
+            // arrive only if they left. v2 checked the stack, then removed, then added: many sends at once all
+            // passed the check, and every one of them delivered.
+            $sent = $_POST['user'] != $userid && $db->attempt(function () use ($userid, $r) {
+                if (!item_take_row($userid, (int) $_GET['ID'], (int) $_POST['qty']))
+                {
+                    return false;
+                }
+                item_add((int) $_POST['user'], (int) $r['inv_itemid'], (int) $_POST['qty']);
+                return true;
+            });
+            if (!$sent)
+            {
+                echo $_POST['user'] == $userid ? 'You cannot send items to yourself.' : 'You are trying to send more than you have!';
+                $h->endpage();
+                exit;
+            }
             echo 'You sent ' . $_POST['qty'] . ' ' . $r['itmname'] . '(s) to '
                     . $rm['username'];
             event_add($_POST['user'],

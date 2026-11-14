@@ -65,20 +65,13 @@ else
             $h->endpage();
             exit;
         }
-        elseif ($_POST['xfer'] > $ir['cybermoney'])
+        elseif (!wallet_send($userid, (int)$_GET['ID'], 'cybermoney', (int)$_POST['xfer']))   // engine v3: taken and given together, or not at all
         {
             echo 'Not enough money to send.';
         }
         else
         {
-            $db->query(
-                    "UPDATE `users`
-                     SET `cybermoney` = `cybermoney` - {$_POST['xfer']}
-                     WHERE `userid` = $userid");
-            $db->query(
-                    "UPDATE `users`
-                     SET `cybermoney` = `cybermoney` + {$_POST['xfer']}
-                     WHERE `userid` = {$_GET['ID']}");
+
             echo 'You CyberBank Transferred '
                     . money_formatter($_POST['xfer'])
                     . " to {$er['username']} (ID {$_GET['ID']}).";

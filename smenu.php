@@ -16,6 +16,9 @@ if (!defined('JDSF45TJI'))
 global $db, $c, $ir, $set;
 echo "<a href='index.php'>Back To Game</a><hr />
 <b>General</b><br />
+<a href='staff_dashboard.php'>Dashboard</a><br />
+<a href='staff_ledger.php'>Ledger</a><br />
+<a href='staff_tickets.php'>Support Tickets" . (ticket_waiting() > 0 ? ' (' . ticket_waiting() . ')' : '') . "</a><br />
 <a href='staff.php'>Index</a><br />";
 if (check_access('administrator')) {
     echo "
@@ -75,7 +78,8 @@ if (check_access(['manage_users', 'view_user_inventory', 'credit_user', 'manage_
             <a href='staff_items.php?action=newitem'>Create New Item</a><br />
             <a href='staff_items.php?action=edititem'>Edit Item</a><br />
             <a href='staff_items.php?action=killitem'>Delete An Item</a><br />
-            <a href='staff_items.php?action=newitemtype'>Add Item Type</a><br />";
+            <a href='staff_items.php?action=newitemtype'>Add Item Type</a><br />
+            <a href='staff_crafting.php'>Crafting Recipes</a><br />";
         }
         echo "<a href='staff_items.php?action=giveitem'>Give Item To User</a><br />";
     }

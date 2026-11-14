@@ -43,71 +43,54 @@ else
             $h->endpage();
             exit;
         }
+        // engine v3: the item is used up first, in one statement that refuses if it is not there; only then does it
+        // take effect. v2 applied the effect and removed the item afterwards, so one item used from many requests
+        // at once worked every time. Effects are now added to what the player has, not written over it.
+        if (!item_take_row($userid, $_GET['ID'], 1))
+        {
+            echo 'Invalid item ID';
+            $h->endpage();
+            exit;
+        }
+        $bars = ['energy', 'will', 'brave', 'hp'];
+        $stats = ['strength', 'agility', 'guard', 'labour', 'IQ'];
+        $others = ['money', 'crystals', 'cybermoney', 'bankmoney', 'exp', 'crimexp', 'hospital', 'jail', 'maxenergy', 'maxwill', 'maxbrave', 'maxhp', 'donatordays', 'mailban', 'fedjail'];
         for ($enum = 1; $enum <= 3; $enum++)
         {
-            if ($r["effect{$enum}_on"])
+            if (!$r["effect{$enum}_on"])
             {
-                $einfo = unserialize($r["effect{$enum}"]);
-                if ($einfo['inc_type'] == 'percent')
-                {
-                    if (in_array($einfo['stat'],
-                            ['energy', 'will', 'brave', 'hp']))
-                    {
-                        $inc =
-                                round(
-                                        $ir['max' . $einfo['stat']] / 100
-                                                * $einfo['inc_amount']);
-                    }
-                    else
-                    {
-                        $inc =
-                                round(
-                                        $ir[$einfo['stat']] / 100
-                                                * $einfo['inc_amount']);
-                    }
-                }
-                else
-                {
-                    $inc = $einfo['inc_amount'];
-                }
-                if ($einfo['dir'] == 'pos')
-                {
-                    if (in_array($einfo['stat'],
-                            ['energy', 'will', 'brave', 'hp']))
-                    {
-                        $ir[$einfo['stat']] =
-                                min($ir[$einfo['stat']] + $inc,
-                                        $ir['max' . $einfo['stat']]);
-                    }
-                    else
-                    {
-                        $ir[$einfo['stat']] += $inc;
-                    }
-                }
-                else
-                {
-                    $ir[$einfo['stat']] = max($ir[$einfo['stat']] - $inc, 0);
-                }
-                $upd = $ir[$einfo['stat']];
-                if (in_array($einfo['stat'],
-                        ['strength', 'agility', 'guard', 'labour', 'IQ']))
-                {
-                    $db->query(
-                            "UPDATE `userstats`
-                             SET `{$einfo['stat']}` = '{$upd}'
-                             WHERE `userid` = {$userid}");
-                }
-                else
-                {
-                    $db->query(
-                            "UPDATE `users`
-                             SET `{$einfo['stat']}` = '{$upd}'
-                             WHERE `userid` = {$userid}");
-                }
+                continue;
+            }
+            $einfo = unserialize((string) $r["effect{$enum}"], ['allowed_classes' => false]);
+            $stat = is_array($einfo) ? (string) ($einfo['stat'] ?? '') : '';
+            if (!in_array($stat, array_merge($bars, $stats, $others), true))
+            {
+                continue;       // not something an item may change
+            }
+            $is_bar = in_array($stat, $bars, true);
+            $table = in_array($stat, $stats, true) ? 'userstats' : 'users';
+            if (($einfo['inc_type'] ?? '') == 'percent')
+            {
+                $inc = round(($is_bar ? $ir['max' . $stat] : $ir[$stat]) / 100 * $einfo['inc_amount']);
+            }
+            else
+            {
+                $inc = $einfo['inc_amount'];
+            }
+            $inc = abs((float) $inc);
+            if (($einfo['dir'] ?? '') == 'pos')
+            {
+                $db->exec($is_bar
+                        ? "UPDATE `users` SET `{$stat}` = LEAST(GREATEST(`{$stat}`, `max{$stat}`), `{$stat}` + ?) WHERE `userid` = ?"
+                        : "UPDATE `{$table}` SET `{$stat}` = `{$stat}` + ? WHERE `userid` = ?", [$inc, $userid]);
+            }
+            else
+            {
+                // an unopened bank account (-1) is left alone
+                $db->exec("UPDATE `{$table}` SET `{$stat}` = GREATEST(`{$stat}` - ?, LEAST(`{$stat}`, 0)) WHERE `userid` = ?", [$inc, $userid]);
             }
         }
         echo $r['itmname'] . ' used successfully!';
-        item_remove($userid, (int)$r['inv_itemid'], 1);
     }
 }
 $h->endpage();

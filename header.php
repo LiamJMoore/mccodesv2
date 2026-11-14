@@ -39,7 +39,12 @@ class headers
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="css/global.css" type="text/css" rel="stylesheet" />
 <link href="css/game.css" type="text/css" rel="stylesheet" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#09090A" />
+<link rel="icon" href="images/app-icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="images/app-icon.svg" />
 <title>{$set['game_name']}</title>
 </head>
 <body class="mc26">
@@ -90,7 +95,7 @@ EOF;
         $bropp  = 100 - $brperc;
         $hpopp  = 100 - $hpperc;
         $d      = '';
-        $u      = $ir['username'];
+        $u      = function_exists('perk_name') ? perk_name((int)$ir['userid'], (string)$ir['username']) : $ir['username'];
         if ($ir['donatordays']) {
             $u = "<span style='color: red;'>{$ir['username']}</span>";
             $d =
@@ -103,6 +108,8 @@ EOF;
         $bgcolor = 'FFFFFF';
 
         $initial = strtoupper(substr((string)$ir['username'], 0, 1));
+        // engine v3: the notifications bell
+        $bell = function_exists('notify_bell') ? notify_bell((int)$ir['userid'], (int)$ir['new_events'] + (int)$ir['new_mail']) : '';
         print
             <<<OUT
 <aside class="side">
@@ -110,18 +117,19 @@ EOF;
 <section class="player">
   <div class="player-top">
     <span class="avatar">{$initial}</span>
-    <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level {$ir['level']}</small></div>
+    <div class="who"><b>$gn{$u}</b> $d<small>ID #{$ir['userid']} &middot; Level <span data-live="level">{$ir['level']}</span></small></div>
+    {$bell}
   </div>
   <div class="wallet">
-    <div><small>Money</small><b>{$fm}</b></div>
-    <div><small>Crystals</small><b>{$ir['crystals']}</b></div>
+    <div><small>Money</small><b data-live="money">{$fm}</b></div>
+    <div><small>Crystals</small><b data-live="crystals">{$ir['crystals']}</b></div>
   </div>
   <div class="meters">
-    <div class="meter m-energy"><span>Energy</span><em>{$enperc}%</em><i style="--v:{$enperc}%"></i></div>
-    <div class="meter m-will"><span>Will</span><em>{$wiperc}%</em><i style="--v:{$wiperc}%"></i></div>
-    <div class="meter m-brave"><span>Brave</span><em>{$ir['brave']}/{$ir['maxbrave']}</em><i style="--v:{$brperc}%"></i></div>
-    <div class="meter m-exp"><span>EXP</span><em>{$experc}%</em><i style="--v:{$experc}%"></i></div>
-    <div class="meter m-hp"><span>Health</span><em>{$hpperc}%</em><i style="--v:{$hpperc}%"></i></div>
+    <div class="meter m-energy" data-live-bar="energy"><span>Energy</span><em>{$enperc}%</em><i style="--v:{$enperc}%"></i></div>
+    <div class="meter m-will" data-live-bar="will"><span>Will</span><em>{$wiperc}%</em><i style="--v:{$wiperc}%"></i></div>
+    <div class="meter m-brave" data-live-bar="brave"><span>Brave</span><em>{$ir['brave']}/{$ir['maxbrave']}</em><i style="--v:{$brperc}%"></i></div>
+    <div class="meter m-exp" data-live-bar="exp"><span>EXP</span><em>{$experc}%</em><i style="--v:{$experc}%"></i></div>
+    <div class="meter m-hp" data-live-bar="hp"><span>Health</span><em>{$hpperc}%</em><i style="--v:{$hpperc}%"></i></div>
   </div>
   <a class="logout" href="logout.php">Emergency logout</a>
 </section>
@@ -163,14 +171,24 @@ OUT;
         include 'mainmenu.php';
         global $ir, $set;
         $bgcolor = 'FFFFFF';
-        print '</nav></aside><main class="main"><div class="notices">';
+        // engine v3: on a phone the five places players go most sit in a bar along the bottom
+        $tab = fn (string $href, string $icon, string $label): string =>
+            "<a href='{$href}'" . (ui_here() === $href ? " class='on' aria-current='page'" : '') . '>' . ui_icon($icon, 22) . "<span>{$label}</span></a>";
+        print '</nav></aside><nav class="tabbar" aria-label="Quick links">' . $tab('index.php', 'home', 'Home') . $tab('explore.php', 'compass', 'Explore')
+            . $tab('criminal.php', 'mask', 'Crimes') . $tab('gym.php', 'dumbbell', 'Gym') . '<label for="navt">' . ui_icon('menu', 22) . '<span>Menu</span></label></nav>';
+        print '<main class="main"><div class="notices">';
+        if (!empty($GLOBALS['MCC_TRIP'])) {
+            echo "<div class='notice'><b>Travelling</b> to " . e($GLOBALS['MCC_TRIP']['cityname']) . ', arriving in ' . travel_clock($GLOBALS['MCC_TRIP']['left']) . ". <a href='monorail.php'>Journey</a></div>";
+        }
         if ($ir['hospital']) {
             echo "<div class='notice n-hosp'><b>In hospital</b> for {$ir['hospital']} minutes.</div>";
         }
         if ($ir['jail']) {
             echo "<div class='notice n-jail'><b>In jail</b> for {$ir['jail']} minutes.</div>";
         }
-        echo "<a class='notice n-donate' href='donator.php'><b>Support {$set['game_name']}</b> and unlock donator perks &rarr;</a>";
+        echo function_exists('store_ready') && store_ready()
+            ? "<a class='notice n-donate' href='store.php'><b>Store</b>: crystal packs with Apple Pay, Google Pay or card &rarr;</a>"
+            : "<a class='notice n-donate' href='donator.php'><b>Support {$set['game_name']}</b> and unlock donator perks &rarr;</a>";
         echo '</div><div class="page"><center>';
     }
 
@@ -202,6 +220,9 @@ OUT;
 <footer class="foot">{$db->num_queries} queries{$query_extra}</footer>
 </main>
 </div>
+<script src="js/notify.js" defer></script>
+<script src="js/live.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>
 OUT;

@@ -497,26 +497,19 @@ function gang_donate2(): void
         $h->endpage();
         exit;
     }
-    if ($_POST['money'] > $ir['money'])
+    // engine v3: the donation leaves the player in one statement that refuses if either amount is not there, and
+    // reaches the vault only if it left
+    $donated = $db->attempt(function () use ($db, $userid, $gangdata) {
+        return $db->exec('UPDATE `users` SET `money` = `money` - ?, `crystals` = `crystals` - ? WHERE `userid` = ? AND `money` >= ? AND `crystals` >= ? AND `gang` = ?',
+                [$_POST['money'], $_POST['crystals'], $userid, $_POST['money'], $_POST['crystals'], (int) $gangdata['gangID']]) === 1
+            && vault_give((int) $gangdata['gangID'], $_POST['money'], $_POST['crystals']);
+    });
+    if (!$donated)
     {
-        echo 'You can\'t donate more money than you have,
-        	please go back and try again.<br />
-        &gt; <a href="yourgang.php?action=donate">Back</a>';
-    } elseif ($_POST['crystals'] > $ir['crystals']) {
-        echo 'You can\'t donate more crystals than you have,
+        echo 'You can\'t donate more money or crystals than you have,
         	please go back and try again.<br />
         &gt; <a href="yourgang.php?action=donate">Back</a>';
     } else {
-        $db->query(
-            "UPDATE `users`
-                 SET `money` = `money` - {$_POST['money']},
-                 `crystals` = `crystals` - {$_POST['crystals']}
-                 WHERE `userid` = $userid");
-        $db->query(
-            "UPDATE `gangs`
-                 SET `gangMONEY` = `gangMONEY` + {$_POST['money']},
-                 `gangCRYSTALS` = `gangCRYSTALS` + {$_POST['crystals']}
-                 WHERE `gangID` = {$gangdata['gangID']}");
         $my_name    = htmlentities($ir['username'], ENT_QUOTES, 'ISO-8859-1');
         $gang_event =
             $db->escape(
@@ -1039,16 +1032,19 @@ function gang_staff_vault(): void
             $db->free_result($md);
             $money = $_POST['money'];
             $crys  = $_POST['crystals'];
-            $db->query(
-                "UPDATE `users`
-                     SET `money` = `money` + $money,
-                     `crystals` = `crystals` + $crys
-                     WHERE `userid` = $who");
-            $db->query(
-                "UPDATE `gangs`
-                     SET `gangMONEY` = `gangMONEY` - $money,
-                     `gangCRYSTALS` = `gangCRYSTALS` - $crys
-                     WHERE `gangID` = {$gangdata['gangID']}");
+            // engine v3: the vault pays out in one statement that refuses if it does not hold both amounts, and the
+            // member is paid only if the vault paid
+            $given = $db->attempt(function () use ($db, $gangdata, $who, $money, $crys) {
+                return vault_take((int) $gangdata['gangID'], $money, $crys)
+                    && $db->exec('UPDATE `users` SET `money` = `money` + ?, `crystals` = `crystals` + ? WHERE `userid` = ? AND `gang` = ?', [$money, $crys, $who, (int) $gangdata['gangID']]) === 1;
+            });
+            if (!$given)
+            {
+                echo "The vault does not have that much.<br />
+                &gt; <a href='yourgang.php?action=staff&amp;act2=vault'>Back</a>";
+                $h->endpage();
+                exit;
+            }
             event_add($who,
                 'You were given ' . money_formatter($money)
                 . " and/or $crys crystals from your Gang.");
@@ -1617,11 +1613,13 @@ function gang_staff_upgrades(): void
             echo 'Your gang does not have enough money to upgrade that much capacity.';
         } else {
             $cost = $_POST['membs'] * 100000;
-            $db->query(
-                "UPDATE `gangs`
-                     SET `gangCAPACITY` = `gangCAPACITY` + {$_POST['membs']},
-                     `gangMONEY` = `gangMONEY` - $cost
-            		 WHERE `gangID` = {$gangdata['gangID']}");
+            // engine v3: paid for and added in one statement, which refuses if the vault cannot cover it
+            if ($db->exec('UPDATE `gangs` SET `gangCAPACITY` = `gangCAPACITY` + ?, `gangMONEY` = `gangMONEY` - ? WHERE `gangID` = ? AND `gangMONEY` >= ?',
+                    [$_POST['membs'], $cost, (int) $gangdata['gangID'], $cost]) !== 1)
+            {
+                echo 'Your gang does not have enough money to upgrade that much capacity.';
+                return;
+            }
             echo 'You paid ' . money_formatter($cost)
                 . " to add {$_POST['membs']} capacity to your gang.";
         }
@@ -1715,16 +1713,18 @@ function gang_staff_masspayment(): void
                          WHERE `gang` = {$gangdata['gangID']}");
         while ($r = $db->fetch_row($q))
         {
-            if ($gangdata['gangMONEY'] >= $_POST['amt'])
+            // engine v3: each payment comes out of the vault in a statement that refuses if it is not there, and
+            // the member is paid only if it came out. v2 worked from a balance read at the top of the page and
+            // wrote that back at the end, so two payments sent together both paid from the same money.
+            $paid = $db->attempt(function () use ($db, $gangdata, $r) {
+                return vault_take((int) $gangdata['gangID'], $_POST['amt'])
+                    && $db->exec('UPDATE `users` SET `money` = `money` + ? WHERE `userid` = ? AND `gang` = ?', [$_POST['amt'], (int) $r['userid'], (int) $gangdata['gangID']]) === 1;
+            });
+            if ($paid)
             {
                 event_add($r['userid'],
                     'You were given ' . money_formatter($_POST['amt'])
                     . ' from your gang.');
-                $db->query(
-                        "UPDATE `users`
-                         SET `money` = `money` + {$_POST['amt']}
-                         WHERE `userid` = {$r['userid']}");
-                $gangdata['gangMONEY'] -= $_POST['amt'];
                 echo "Money sent to {$r['username']}.<br />";
             }
             else
@@ -1732,10 +1732,6 @@ function gang_staff_masspayment(): void
                 echo "Not enough in the vault to pay {$r['username']}!<br />";
             }
         }
-        $db->query(
-                "UPDATE `gangs`
-                 SET `gangMONEY` = {$gangdata['gangMONEY']}
-                 WHERE `gangID` = {$gangdata['gangID']}");
         $credit_evt =
                 $db->escape(
                         'A mass payment of ' . money_formatter($_POST['amt'])

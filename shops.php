@@ -60,6 +60,7 @@ else
 					<th>Sell Price</th>
 					<th>Buy</th>
 				</tr>";
+            $shop_token = request_csrf_code('shop_buy');     // one token for this page, on every Buy form
             $qtwo =
                     $db->query(
                             "SELECT `itmtypename`, `itmname`, `itmdesc`,
@@ -91,6 +92,7 @@ else
                         . "</td>
                             <td>
                             	<form action='itembuy.php?ID={$r['sitemID']}' method='post'>
+                            		<input type='hidden' name='verf' value='{$shop_token}' />
                             		Qty: <input type='text' name='qty' value='1' />
                             		<input type='submit' value='Buy' />
                             	</form>

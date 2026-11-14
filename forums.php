@@ -18,32 +18,18 @@ require_once __DIR__.'/class/class_bbcode.php';
  */
 function check_image($src): string
 {
-    if (str_contains($src, '.php') || str_contains($src, '.asp')
-            || str_contains($src, '.aspx')
-            || str_contains($src, '.htm'))
+    // engine v3: v2 fetched every image from the game's own server each time a post was shown (getimagesize), which
+    // let a player point the server at any address, and made a topic slower with every picture in it. The address
+    // is now checked for shape and left to the reader's browser.
+    $src = is_array($src) ? (string) ($src[1] ?? '') : (string) $src;
+    $url = safe_url(str_starts_with(strtolower($src), 'http') ? $src : 'https://' . $src);
+    $path = strtolower((string) parse_url(html_entity_decode($url, ENT_QUOTES, 'ISO-8859-1'), PHP_URL_PATH));
+    if ($url === '' || !str_starts_with($url, 'https://') || !preg_match('/\.(gif|jpe?g|png|webp)$/', $path))
     {
         return 'invalid image';
     }
-    if (!str_contains($src, '.gif') && !str_contains($src, '.jpg')
-            && !str_contains($src, '.png')
-            && !str_contains($src, '.jpeg'))
-    {
-        return 'invalid image';
-    }
-
-    if (!str_starts_with($src, 'https://'))
-    {
-        $src = 'https://' . $src;
-    }
-    $image = (@getimagesize($src));
-    if (!is_array($image))
-    {
-        return 'Invalid Image.';
-    }
-
-    $alt_title = explode('/', $src);
-    $the_title = $alt_title[count($alt_title) - 1];
-    return "<img src='{$src}' title='{$the_title}' alt='{$the_title}' />";
+    $the_title = htmlspecialchars(basename($path), ENT_QUOTES, 'ISO-8859-1');
+    return "<img src='{$url}' title='{$the_title}' alt='{$the_title}' loading='lazy' referrerpolicy='no-referrer' style='max-width:100%;' />";
 }
 
 /**
@@ -100,11 +86,18 @@ if (isset($_GET['reply']))
 {
     $_GET['act'] = 'reply';
 }
-if (isset($_GET['empty']) && $_GET['empty'] == 1 && isset($_GET['code'])
-        && $_GET['code'] === 'kill' && isset($_SESSION['owner'])
-        && $_SESSION['owner'] > 0)
+// engine v3: v2 had an address here (?empty=1&code=kill) that erased every forum, topic and post. It is gone.
+// Moderator actions change things, so they need the link token: without it, another site, or a link in a post,
+// could make a moderator's browser lock, move or delete a topic.
+if (in_array($_GET['act'], ['move', 'lock', 'delepost', 'deletopic', 'pin', 'recache'], true))
 {
-    emptyallforums();
+    if (!check_access('manage_forums') || !link_token_ok())
+    {
+        echo 'That link has expired, or it is not yours to use. Go back to the topic and try again.<br />
+        &gt; <a href="forums.php" title="Go Back">go back</a>';
+        $h->endpage();
+        exit;
+    }
 }
 switch ($_GET['act'])
 {
@@ -565,19 +558,19 @@ function topic_management_options(): void
 {
     echo '<br>';
     if (check_access('manage_forums')) {
-        echo "<form action='forums.php?act=move&amp;topic={$_GET['viewtopic']}' method='post'>
+        echo "<form action='forums.php?act=move&amp;topic={$_GET['viewtopic']}&amp;tk=" . link_token() . "' method='post'>
     <b>Move topic to:</b> " . forum_dropdown('forum', -1)
             . "
 	<input type='submit' value='Move' />
 	</form>
 	<br />
-	<a href='forums.php?act=pin&amp;topic={$_GET['viewtopic']}'>
+	<a href='forums.php?act=pin&amp;topic={$_GET['viewtopic']}&amp;tk=" . link_token() . "'>
 		<img src='sticky.jpg' alt='Pin/Unpin Topic' title='Pin/Unpin Topic' />
 	</a>
-	<a href='forums.php?act=lock&amp;topic={$_GET['viewtopic']}'>
+	<a href='forums.php?act=lock&amp;topic={$_GET['viewtopic']}&amp;tk=" . link_token() . "'>
 		<img src='lock.jpg' alt='Lock/Unlock Topic' title='Lock/Unlock Topic' />
 	</a>
-	<a href='forums.php?act=deletopic&amp;topic={$_GET['viewtopic']}'>
+	<a href='forums.php?act=deletopic&amp;topic={$_GET['viewtopic']}&amp;tk=" . link_token() . "'>
 		<img src='delete.gif' alt='Delete Topic' title='Delete Topic' />
 	</a><br />";
     }
@@ -816,6 +809,7 @@ function newtopicform(): void
         	<th colspan='2'><input type='submit' value='Post Topic' /></th>
         </tr>
     </table>
+    </form>
 EOF;
 }
 
@@ -942,18 +936,6 @@ You have no permission to view this forum.<br />
 /**
  * @return void
  */
-function emptyallforums(): void
-{
-    global $db;
-    $db->query(
-            "UPDATE `forum_forums`
-             SET `ff_lp_time` = 0, `ff_lp_poster_id` = 0,
-             `ff_lp_poster_name` = 'N/A', `ff_lp_t_id` = 0,
-             `ff_lp_t_name` = 'N/A', `ff_posts` = 0, `ff_topics` = 0");
-    $db->query('TRUNCATE `forum_topics`');
-    $db->query('TRUNCATE `forum_posts`');
-}
-
 /**
  * @return void
  */
@@ -1431,7 +1413,7 @@ function recache_topic($topic): void
 function move(): void
 {
     global $ir, $h, $db;
-    if (!!check_access('manage_forums'))
+    if (!check_access('manage_forums'))
     {
         echo 'There seems to be a error somewhere.<br />
         &gt; <a href="forums.php" title="Go Back">go back</a>';
@@ -1771,7 +1753,7 @@ function get_links(array $r, int &$no): array
                 'ISO-8859-1')) . "'>Quote Post</a>]";
     $elink = check_access('manage_forums') || $ir['userid'] == $r['fp_poster_id'] ? "[<a href='forums.php?act=edit&amp;post={$r['fp_id']}&amp;topic={$_GET['viewtopic']}'>Edit Post</a>]" : '';
     $no++;
-    $dlink = ($no > 1 && check_access('manage_forums')) ? "[<a href='forums.php?act=delepost&amp;post={$r['fp_id']}'>Delete Post</a>]" : '';
+    $dlink = ($no > 1 && check_access('manage_forums')) ? "[<a href='forums.php?act=delepost&amp;post={$r['fp_id']}&amp;tk=" . link_token() . "'>Delete Post</a>]" : '';
     return [$qlink, $elink, $dlink];
 }
 

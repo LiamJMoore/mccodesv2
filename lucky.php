@@ -14,23 +14,17 @@ $box_cost = 1000;
 $bc_format = money_formatter($box_cost);
 if (isset($_GET['open']) && $_GET['open'])
 {
-    if ($ir['boxes_opened'] >= 5)
+    // engine v3: the box is paid for and counted in one statement, which refuses a sixth box or an empty pocket
+    if ($db->exec('UPDATE `users` SET `boxes_opened` = `boxes_opened` + 1, `money` = `money` - ? WHERE `userid` = ? AND `boxes_opened` < 5 AND `money` >= ?',
+            [$box_cost, $userid, $box_cost]) !== 1)
     {
-        die(
-        'Sorry, you have already opened 5 boxes today. Come back tomorrow.');
+        die($ir['boxes_opened'] >= 5
+                ? 'Sorry, you have already opened 5 boxes today. Come back tomorrow.'
+                : "Sorry, it costs {$bc_format} to open a box. Come back when you have enough.");
     }
-    if ($ir['money'] < $box_cost)
-    {
-        die(
-                "Sorry, it costs {$bc_format} to open a box. Come back when you have enough.");
-    }
+    ledger_add($userid, 'money', -$box_cost, 'a box');
     $num = rand(1, 5);
-    $db->query(
-            "UPDATE `users`
-             SET `boxes_opened` = `boxes_opened` + 1,
-             `money` = `money` - {$box_cost}
-             WHERE `userid` = $userid");
-    $ir['money'] -= 1000;
+    $ir['money'] -= $box_cost;
     switch ($num)
     {
     case 1:
@@ -54,7 +48,7 @@ if (isset($_GET['open']) && $_GET['open'])
         echo 'Third outcome here (lost ' . money_formatter($stole) . ')';
         $db->query(
                 "UPDATE `users`
-                 SET `money` = `money` - {$stole}
+                 SET `money` = `money` - LEAST(`money`, {$stole})
                  WHERE `userid` = {$userid}");
         break;
     case 4:

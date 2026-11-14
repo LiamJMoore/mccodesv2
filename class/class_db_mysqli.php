@@ -25,8 +25,12 @@ if (!extension_loaded('mysqli')) {
 /**
  *
  */
+require_once dirname(__DIR__) . '/engine/DbPrepared.php';
+
 class database
 {
+    use DbPrepared;
+
     public string $host;
     public string $user;
     public string $pass;

@@ -17,11 +17,7 @@ if ($ir['hospital'])
 $statnames =
         ['Strength' => 'strength', 'Agility' => 'agility',
                 'Guard' => 'guard', 'Labour' => 'labour'];
-if (!isset($_POST['amnt']))
-{
-    $_POST['amnt'] = 0;
-}
-$_POST['amnt'] = abs((int) $_POST['amnt']);
+$_POST['amnt'] = in_int('amnt', 0, $_POST);
 if ($ir['jail'] <= 0)
 {
     echo '<h3>Gym</h3><hr />';
@@ -32,12 +28,21 @@ else
 }
 if (isset($_POST['stat']) && $_POST['amnt'])
 {
+    if (!verify_csrf_code('gym_train', in_str('verf', 64, '', $_POST)))
+    {
+        echo 'That form had expired. Please try again.<hr />';
+        $_POST['amnt'] = 0;
+    }
+}
+if (isset($_POST['stat']) && $_POST['amnt'])
+{
     if (!isset($statnames[$_POST['stat']]))
     {
         die('This stat cannot be trained.');
     }
     $stat = $statnames[$_POST['stat']];
-    if ($_POST['amnt'] > $ir['energy'])
+    // the energy is taken first, in one statement that refuses if it is not there; only then does the training happen
+    if (!bar_spend($userid, 'energy', $_POST['amnt']))
     {
         print('You do not have enough energy to train that much.<hr />');
     }
@@ -59,15 +64,9 @@ if (isset($_POST['stat']) && $_POST['amnt'])
         {
             $gain /= 2;
         }
-        $db->query(
-                "UPDATE `userstats`
-        		 SET `{$stat}` = `{$stat}` + $gain
-        		 WHERE `userid` = $userid");
-        $db->query(
-                "UPDATE `users`
-                 SET `will` = {$ir['will']},
-                 `energy` = `energy` - {$_POST['amnt']}
-                 WHERE `userid` = $userid");
+        $db->exec("UPDATE `userstats` SET `{$stat}` = `{$stat}` + ? WHERE `userid` = ?", [$gain, $userid]);
+        $db->exec('UPDATE `users` SET `will` = ? WHERE `userid` = ?', [$ir['will'], $userid]);
+        progress_add($userid, 'gym', $_POST['amnt']);
         $inc = $ir[$stat] + $gain;
         $inc2 = $ir['energy'] - $_POST['amnt'];
         if ($stat == 'strength')
@@ -105,7 +104,7 @@ $ir['guarank'] = get_rank($ir['guard'], 'guard');
 $ir['labrank'] = get_rank($ir['labour'], 'labour');
 echo "Choose the stat you want to train and the times you want to train it.<br />
 You can train up to {$ir['energy']} times.<hr />
-<form action='gym.php' method='post'>
+<form action='gym.php' method='post'>" . request_csrf_html('gym_train') . "
 Stat: <select type='dropdown' name='stat'>
 <option style='color:red;' value='Strength'>Strength (Have {$ir['strength']}, Ranked {$ir['strank']})
 <option style='color:blue;' value='Agility'>Agility (Have {$ir['agility']}, Ranked {$ir['agirank']})

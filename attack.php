@@ -139,13 +139,11 @@ if ($_GET['wepid'])
     }
     if ($_SESSION['attacking'] == 0 && $ir['attacking'] == 0)
     {
-        if ($youdata['energy'] >= $youdata['maxenergy'] / 2)
+        $cost = (int) floor($youdata['maxenergy'] / 2);
+        // engine v3: the energy is taken in one statement that refuses if it is not there
+        if ($youdata['energy'] >= $youdata['maxenergy'] / 2 && bar_spend($userid, 'energy', $cost))
         {
-            $youdata['energy'] -= floor($youdata['maxenergy'] / 2);
-            $cost = floor($youdata['maxenergy'] / 2);
-            $db->query(
-                    "UPDATE `users` SET `energy` = `energy` - {$cost} "
-                            . "WHERE `userid` = {$userid}");
+            $youdata['energy'] -= $cost;
             $_SESSION['attacklog'] = '';
             $_SESSION['attackdmg'] = 0;
         }
@@ -376,6 +374,12 @@ elseif ($ir['gang'] == $odata['gang'] && $ir['gang'] > 0)
 elseif ($youdata['energy'] < $youdata['maxenergy'] / 2)
 {
     echo 'You can only attack someone when you have 50% energy.<br />&gt; <a href="index.php">Go Home</a>';
+    $h->endpage();
+    exit;
+}
+elseif (travel_of((int)$odata['userid']) !== null)
+{
+    echo 'They are travelling and out of reach. Try again when they arrive.<br />&gt; <a href="index.php">Go Home</a>';
     $h->endpage();
     exit;
 }

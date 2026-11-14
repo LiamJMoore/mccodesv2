@@ -70,7 +70,7 @@ else
                                 . $r['donatordays']
                                 . ' Days Left" title="Donator: '
                                 . $r['donatordays'] . ' Days Left" />'
-                        : $r['username'] . ' [' . $r['userid'] . ']';
+                        : perk_name((int) $r['userid'], (string) $r['username']) . ' [' . $r['userid'] . ']';
         $on =
                 ($r['laston'] >= $_SERVER['REQUEST_TIME'] - 15 * 60)
                         ? '<font color="green"><b>Online</b></font>'
@@ -83,7 +83,7 @@ else
         $ref = $db->fetch_single($ref_q);
         $db->free_result($ref_q);
         echo "
-		<h3>Profile for {$r['username']}</h3>
+		<h3>Profile for {$r['username']}</h3>" . profile_card($r) . "
     	<table width='100%' cellspacing='1' class='table'>
     	<tr>
     		<th>General Info</th>
@@ -203,6 +203,10 @@ else
         }
         echo "
 				[<a href='attack.php?ID={$r['userid']}'>Attack</a>]
+				[<a href='bounties.php?target={$r['userid']}'>Place a bounty</a>]
+				[<a href='achievements.php?u={$r['userid']}'>Achievements</a>]
+				[<a href='record.php?u={$r['userid']}'>Record</a>]
+				[<a href='marriage.php?to={$r['userid']}'>Propose</a>]
 				<br /><br />
 				[<a href='contactlist.php?action=add&ID={$r['userid']}'>Add Contact</a>]
    		";
@@ -287,6 +291,7 @@ else
 			</tr>
 		</table>
    		';
+        echo profile_comments_block((int) $r['userid'], (int) $userid, check_access('manage_users'));
     }
 }
 

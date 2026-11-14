@@ -20,7 +20,11 @@ print
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <script type="text/javascript" src="js/login.js"></script>
+<link href="css/global.css" type="text/css" rel="stylesheet" />
 <link href="css/game.css" type="text/css" rel="stylesheet" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#09090A" />
+<link rel="icon" href="images/app-icon.svg" type="image/svg+xml" />
 </head>
 <body class="mc26 auth" onload="getme();">
 <div class="auth-wrap">

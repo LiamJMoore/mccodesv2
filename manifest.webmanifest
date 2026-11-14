@@ -1,0 +1,14 @@
+{
+  "name": "Trench Wars",
+  "short_name": "Trench Wars",
+  "description": "A text-based crime game.",
+  "start_url": "loggedin.php",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#09090A",
+  "theme_color": "#09090A",
+  "icons": [
+    { "src": "images/app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "images/app-icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

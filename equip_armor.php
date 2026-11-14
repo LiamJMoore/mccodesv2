@@ -47,15 +47,34 @@ if (isset($_POST['type']))
         $h->endpage();
         exit;
     }
-    if ($ir['equip_armor'] > 0)
+    // engine v3: the item leaves the inventory, the slot changes and the old item comes back, all together or not
+    // at all. The slot changes only if it still holds what this request saw, so the old item is returned once.
+    $slot = 'equip_armor';
+    $old = (int) $ir[$slot];
+    if ($old === (int) $r['itmid'])
     {
-        item_add($userid, (int) $ir['equip_armor'], 1);
+        echo "You already have a {$r['itmname']} in that slot.";
+        $h->endpage();
+        exit;
     }
-    item_remove($userid, (int) $r['itmid'], 1);
-    $db->query(
-            "UPDATE `users`
-             SET `equip_armor` = {$r['itmid']}
-             WHERE `userid` = {$userid}");
+    $equipped = $db->attempt(function () use ($db, $userid, $r, $slot, $old) {
+        if (!item_take_row($userid, $_GET['ID'], 1)
+                || $db->exec("UPDATE `users` SET `{$slot}` = ? WHERE `userid` = ? AND `{$slot}` = ?", [(int) $r['itmid'], $userid, $old]) !== 1)
+        {
+            return false;
+        }
+        if ($old > 0)
+        {
+            item_add($userid, $old, 1);
+        }
+        return true;
+    });
+    if (!$equipped)
+    {
+        echo 'That could not be equipped. Please try again.';
+        $h->endpage();
+        exit;
+    }
     echo "Item {$r['itmname']} equipped successfully.";
 }
 else

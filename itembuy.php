@@ -39,7 +39,19 @@ else
     else
     {
         $itemd = $db->fetch_row($q);
-        if ($ir['money'] < ($itemd['itmbuyprice'] * $_POST['qty']))
+        if (!isset($_POST['verf']) || !verify_csrf_code('shop_buy', stripslashes((string)$_POST['verf'])))
+        {
+            echo 'That shop page had expired. Nothing was bought; please go back to the shop and try again.
+            <br />&gt; <a href="shops.php">Back to the shops</a>';
+            $h->endpage();
+            exit;
+        }
+        $price = (int)($itemd['itmbuyprice'] * $_POST['qty']);
+        if ($itemd['itmbuyable'] == 0 || $itemd['shopLOCATION'] != $ir['location'])
+        {
+            // said in full below
+        }
+        elseif (!wallet_take($userid, 'money', $price))      // engine v3: the money is taken only if it is there
         {
             echo 'You don\'t have enough money to buy ' . $_POST['qty'] . ' '
                     . $itemd['itmname']
@@ -62,12 +74,8 @@ else
             exit;
         }
 
-        $price = (int)($itemd['itmbuyprice'] * $_POST['qty']);
         item_add($userid, (int) $itemd['itmid'], (int) $_POST['qty']);
-        $db->query(
-                "UPDATE `users`
-        		 SET `money` = `money` - $price
-        		 WHERE `userid` = $userid");
+        progress_add($userid, 'shop_buy', (int) $_POST['qty']);
         $ib_log =
                 $db->escape(
                         "{$ir['username']} bought {$_POST['qty']} "
